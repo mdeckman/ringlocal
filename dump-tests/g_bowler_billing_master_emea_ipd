@@ -1,0 +1,178 @@
+let
+  // --- Power BI Dataflows root ---
+  Source      = PowerPlatform.Dataflows(null),
+  Workspaces  = Source{[Id="Workspaces"]}[Data],
+
+  // ===== Table 1 =====
+  WS_T1       = Workspaces{[workspaceId="579fcd14-d502-4a3c-8263-e6851e8af326"]}[Data],
+  DF_T1       = WS_T1{[dataflowId="4b576598-8bcb-4a55-b5f7-1cb611570cf0"]}[Data],
+  T1          = DF_T1{[entity="RV_co_canonical_bdx_billing_master_aggregation_emea", version=""]}[Data],
+
+  // ===== Table 2 (prep + filters) =====
+  WS_T2       = Workspaces{[workspaceId="83cb4416-e961-4d2a-a222-b07c73b8ff63"]}[Data],
+  DF_T2       = WS_T2{[dataflowId="0d49ad1e-5427-48bb-9085-da60fdba4256"]}[Data],
+  T2_raw      = DF_T2{[entity="v_reltioproduct_hier", version=""]}[Data],
+
+  // Build join key to match Table 1's material_key_reltio
+  T2_withKey  = Table.AddColumn(
+                  T2_raw,
+                  "material_key_reltio",
+                  each [ReltioBU] & "|" & [Product]
+                ),
+
+  // BU filter
+  T2_BU       = Table.SelectRows(
+                  T2_withKey,
+                  each Text.StartsWith([ReltioBU], "MDS")
+                    or Text.StartsWith([ReltioBU], "MMS")
+                ),
+
+  // Level1Desc filter
+  T2_Filtered = Table.SelectRows(
+                  T2_BU,
+                  each [Level1Desc] = "Alaris Plus"
+                    or [Level1Desc] = "Alaris System"
+                    or [Level1Desc] = "BD Nexus"
+                    or [Level1Desc] = "CME"
+                    or [Level1Desc] = "Gravity and Syringe Delivery"
+                    or [Level1Desc] = "Hazardous Drug Solutions"
+                    or [Level1Desc] = "Infusion Direct Non-Allocated"
+                    or [Level1Desc] = "IPD OEM"
+                    or [Level1Desc] = "IV Access"
+                    or [Level1Desc] = "IV Solutions"
+                ),
+
+  // ===== Inner join (keep ONLY Table 1 columns) =====
+  Joined      = Table.Join(
+                  T1,
+                  {"material_key_reltio"},
+                  T2_Filtered,
+                  {"material_key_reltio"},
+                  JoinKind.Inner
+                ),
+
+  // ===== Force EMEA schema =====
+  EmeaColumns = {
+        "material_id",
+        "material_key",
+        "erp_customer_key",
+        "distributor_key",
+        "ship_to_account_number",
+        "sold_to_account_number",
+        "invoice_date",
+        "indirect_sell_date",
+        "date_added",
+        "billing_type_description",
+        "billing_quantity",
+        "invoice_quantity",
+        "actual_net_revenue",
+        "distribution_channel",
+        "distribution_channel_description",
+        "transaction_type",
+        "actual_gross_profit",
+        "country",
+        "local_currency",
+        "direct_sales_view_flag",
+        "customer_view_flag",
+        "sales_flag"
+    },
+
+  EnsureCols = List.Accumulate(
+                  EmeaColumns,
+                  Joined,
+                  (state, col) =>
+                      if List.Contains(Table.ColumnNames(state), col)
+                      then state
+                      else Table.AddColumn(state, col, each null)
+              ),
+
+  Ordered = Table.SelectColumns(EnsureCols, EmeaColumns),
+
+  // ===== Rename to Column General names =====
+  Renamed = Table.RenameColumns(
+              Ordered,
+              {
+                {"material_id", "Material Id"},
+                {"material_key", "Material Key"},
+                {"erp_customer_key", "Erp Customer Key"},
+                {"distributor_key", "Distributor Key"},
+                {"ship_to_account_number", "Ship To Account Number"},
+                {"sold_to_account_number", "Sold To Account Number"},
+                {"invoice_date", "Invoice Date"},
+                {"indirect_sell_date", "Indirect Sell Date"},
+                {"date_added", "Date Added"},
+                {"billing_type_description", "Billing Type Description"},
+                {"billing_quantity", "Billing Quantity"},
+                {"invoice_quantity", "Invoice Quantity"},
+                {"actual_net_revenue", "Actual Net Revenue"},
+                {"distribution_channel", "Distribution Channel"},
+                {"distribution_channel_description", "Distribution Channel Description"},
+                {"transaction_type", "Transaction Type"},
+                {"actual_gross_profit", "Actual Gross Profit"},
+                {"country", "Country"},
+                {"local_currency", "Currency"},
+                {"direct_sales_view_flag", "Direct Sales View Flag"},
+                {"customer_view_flag", "Customer View Flag"},
+                {"sales_flag", "Sales Flag"}
+              },
+              MissingField.Ignore
+            ),
+
+  // ===== Cast to expected data types =====
+  Typed = Table.TransformColumnTypes(
+            Renamed,
+            {
+              {"Material Id", type text},
+              {"Material Key", type text},
+              {"Erp Customer Key", type text},
+              {"Distributor Key", type text},
+              {"Ship To Account Number", type text},
+              {"Sold To Account Number", type text},
+              {"Invoice Date", type text},        // 👈 changed to text
+              {"Indirect Sell Date", type date},
+              {"Date Added", type date},
+              {"Billing Type Description", type text},
+              {"Billing Quantity", type number},
+              {"Invoice Quantity", type number},
+              {"Actual Net Revenue", type number},
+              {"Distribution Channel", type text},
+              {"Distribution Channel Description", type text},
+              {"Transaction Type", type text},
+              {"Actual Gross Profit", type number},
+              {"Country", type text},
+              {"Currency", type text},
+              {"Direct Sales View Flag", type logical},
+              {"Customer View Flag", type logical},
+              {"Sales Flag", type logical}
+            }
+          ),
+
+  // ===== Add Source column =====
+  WithSource = Table.AddColumn(
+                 Typed,
+                 "Source",
+                 each "RV_co_canonical_bdx_billing_master_aggregation_emea",
+                 type text
+               ),
+
+  // ===== Rebuild Material Id / Key =====
+  RemovedMatId = Table.RemoveColumns(WithSource,{"Material Id"}),
+  RenamedMat   = Table.RenameColumns(RemovedMatId,{{"Material Key", "Material Id"}}),
+  AddedKey     = Table.AddColumn(
+                   RenamedMat,
+                   "Material Key",
+                   each Text.BeforeDelimiter([Erp Customer Key], "|") & "|" & [Material Id]
+                 ),
+  Reordered    = Table.ReorderColumns(
+                   AddedKey,
+                   {"Material Key", "Material Id", "Erp Customer Key", "Distributor Key",
+                    "Ship To Account Number", "Sold To Account Number", "Invoice Date",
+                    "Indirect Sell Date", "Date Added", "Billing Type Description",
+                    "Billing Quantity", "Invoice Quantity", "Actual Net Revenue",
+                    "Distribution Channel", "Distribution Channel Description", "Transaction Type",
+                    "Actual Gross Profit", "Country", "Currency", "Direct Sales View Flag",
+                    "Customer View Flag", "Sales Flag", "Source"}
+                 ),
+  Final        = Table.TransformColumnTypes(Reordered,{{"Material Key", type text}, {"Invoice Date", type date}})
+in
+  Final
