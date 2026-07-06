@@ -1,0 +1,4551 @@
+**Last Updated - 01/12/2025 - Bowler PRD 1.0**
+These are all of the measures made
+
+table MasterMeasures
+	lineageTag: 2fa310b3-70da-4d4b-8b54-d0ee1c763e3f
+
+	measure 'Budget Revenue' =
+			Calculate(
+			    SUM(g_bowler_finance_budget_ipd_cy[BudgetRevenue]),
+			    g_bowler_finance_budget_ipd_cy[Currency]="USD")
+		displayFolder: Fixed Measures
+		lineageTag: df23514c-1678-4920-8c24-34f68cfcb058
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Projection Revenue' =
+			Calculate(
+			    SUM(g_bowler_finance_budget_ipd_cy[BudgetRevenue]),
+			    g_bowler_finance_budget_ipd_cy[Currency]="USD")
+		displayFolder: Fixed Measures
+		lineageTag: 3beeda35-3e69-4e83-90e5-fa31a1b616e8
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. Budget Dynamic' =
+			
+			VAR _base =
+			
+			SWITCH(
+			    SELECTEDVALUE('slc_Metric'[Metric]),
+			    "Revenue", CALCULATE(SUM(g_bowler_finance_budget_ipd_cy[BudgetRevenue]),g_bowler_finance_budget_ipd_cy[RPTCurrency]="USD",g_bowler_finance_budget_ipd_cy[ReAccount]="R_PL_Rev",g_bowler_finance_budget_ipd_cy[Category]="BUD_FINAL"),
+			    "Units",  CALCULATE(SUM(g_bowler_finance_budget_ipd_cy[BudgetUnits]),g_bowler_finance_budget_ipd_cy[RPTCurrency]="USD",g_bowler_finance_budget_ipd_cy[ReAccount]="R_KPI_VOLUME",g_bowler_finance_budget_ipd_cy[Category]="BUD_FINAL")
+			)
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		formatString: #,0
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 6f953731-a765-4a42-81a6-93236635153a
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Fin. Projection Dynamic' = ```
+			
+			VAR _base =
+			
+			SWITCH(
+			    SELECTEDVALUE('slc_Metric'[Metric]),
+			    "Revenue", CALCULATE(SUM(g_bowler_finance_projections_ipd_cy[ProjRevenueBUDRate])),
+			    "Units", CALCULATE(SUM(g_bowler_finance_projections_ipd_cy[ProjUnits]),g_bowler_finance_projections_ipd_cy[ReAccount]="R_KPI_VOLUME",g_bowler_finance_projections_ipd_cy[RPTCurrency]="USD")
+			)
+			
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+			
+			```
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 194d3519-518b-4c3c-aeaa-a28faacef2a8
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure Title
+		displayFolder: Titles
+		lineageTag: 9f36722a-e993-4ee1-8fd1-d0e6d22fa30d
+
+	measure 'Fin. Projection Scenario Dynamic with default' = ```
+			
+			VAR _selScenario = SELECTEDVALUE ( 'slc_Scenario'[Scenario] )
+			VAR _m           = MONTH ( TODAY() )
+			RETURN
+			SWITCH (
+			    TRUE (),
+			
+			    -- If a scenario is selected, use it
+			    NOT ISBLANK ( _selScenario ),
+			        CALCULATE (
+			            [Fin. Projection Dynamic],
+			            KEEPFILTERS ( g_bowler_finance_projections_ipd_cy[Scenario] = _selScenario )
+			        ),
+			
+			    -- Default logic when nothing is selected
+			    _m IN { 10, 11 },   -- Oct–Nov → Budget
+			        [Fin. Budget Dynamic],
+			
+			    _m >= 6 && _m <= 9, -- Jun–Sep → PRJ3
+			        CALCULATE (
+			            [Fin. Projection Dynamic],
+			            KEEPFILTERS ( g_bowler_finance_projections_ipd_cy[Scenario] = "PRJ3" )
+			        ),
+			
+			    _m >= 3 && _m <= 5, -- Mar–May → PRJ2
+			        CALCULATE (
+			            [Fin. Projection Dynamic],
+			            KEEPFILTERS ( g_bowler_finance_projections_ipd_cy[Scenario] = "PRJ2" )
+			        ),
+			
+			    _m = 12 || _m <= 2, -- Dec–Feb → PRJ1
+			        CALCULATE (
+			            [Fin. Projection Dynamic],
+			            KEEPFILTERS ( g_bowler_finance_projections_ipd_cy[Scenario] = "PRJ1" )
+			        ),
+			
+			    BLANK()
+			)
+			
+			```
+		formatString: #,0
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 9c2e8dca-7110-46ff-a2ff-43fbf2489a99
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Fin. Actuals Dynamic' =
+			
+			VAR _base =
+			SWITCH(
+			    SELECTEDVALUE('slc_Metric'[Metric]),
+			    "Revenue", CALCULATE(SUM(g_bowler_finance_actuals_ipd_cy[ActRevBUDRate]),g_bowler_finance_actuals_ipd_cy[RptCurrency]="USD",g_bowler_finance_actuals_ipd_cy[GLRptCatg]="Other Revenue"),
+			    "Units", CALCULATE(SUM(g_bowler_finance_actuals_ipd_cy[ActUnits]),g_bowler_finance_actuals_ipd_cy[RptCurrency]="USD",g_bowler_finance_actuals_ipd_cy[GLRptCatg]="Other Revenue")
+			)
+			
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		formatString: #,0
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 8426d276-7dc8-4b24-9edf-3e9d2073d3c7
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Billing Dynamic' = ```
+			
+			VAR _base =
+			
+			VAR metric = SELECTEDVALUE ( 'slc_Metric'[Metric] )
+			RETURN
+			SWITCH (
+			    TRUE (),
+			
+			    metric = "Revenue",
+			        CALCULATE (
+			            SUM ( g_bowler_billing_master_ww_ipd[Actual Net Revenue USD] ),
+			            KEEPFILTERS ( g_bowler_billing_master_ww_ipd[Sales Flag] = BLANK() ),
+			            KEEPFILTERS ( g_bowler_billing_master_ww_ipd[Direct Sales View Flag] = TRUE () )
+			        ),
+			
+			    metric = "Units",
+			        SUM ( g_bowler_billing_master_ww_ipd[Billing Quantity] ),
+			
+			    BLANK ()
+			)
+			
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+			
+			```
+		formatString: #,0
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 58037992-5da1-4ad4-bf7c-ae7b9e312c5a
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Billing Revenue' =
+			CALCULATE (
+			            SUM ( g_bowler_billing_master_ww_ipd[Actual Net Revenue USD] ),
+			            KEEPFILTERS ( g_bowler_billing_master_ww_ipd[Sales Flag] <> "EXL" ),
+			            KEEPFILTERS ( g_bowler_billing_master_ww_ipd[Direct Sales View Flag] = "Y" ))
+		formatString: 0
+		displayFolder: Testing
+		lineageTag: e207a3d3-b222-42b1-9722-436e01e93796
+
+	measure 'Order Open Dynamic' = ```
+			
+			VAR _filteredBase =
+			    CALCULATE (
+			        SWITCH (
+			            SELECTEDVALUE ( 'slc_Metric'[Metric] ),
+			            "Revenue",
+			                SUMX (
+			                    g_bowler_orders,
+			                    COALESCE ( g_bowler_orders[OpenQuantityBase], 0 )
+			                        * COALESCE ( g_bowler_orders[UnitPriceUsd], 0 )
+			                ),
+			            "Units",
+			                SUM ( g_bowler_orders[OpenQuantityBase] )
+			        ),
+			        KEEPFILTERS (
+			            NOT ( g_bowler_orders[Orderstatuslineharmonized] IN { "CANCELLED", "NOT RELEVANT" } )
+			        )
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1000", DIVIDE ( _filteredBase, 1000 ),
+			        "M",     DIVIDE ( _filteredBase, 1000000 ),
+			        _filteredBase
+			    )
+			
+			```
+		formatString: #,0
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 209cee32-dd2d-4f9b-b8e0-ebfe912ae3c9
+
+	measure 'Order Shipped Dynamic' = ```
+			
+			VAR _Base =
+			    CALCULATE (
+			        SWITCH (
+			            SELECTEDVALUE ( 'slc_Metric'[Metric] ),
+			            "Revenue",
+			                SUMX (
+			                    FILTER (
+			                        g_bowler_orders,
+			                        NOT ISBLANK ( g_bowler_orders[ActualShipDate] )
+			                    ),
+			                    COALESCE ( g_bowler_orders[OrderQuantityBase], 0 )
+			                        * COALESCE ( g_bowler_orders[UnitPriceUsd], 0 )
+			                ),
+			            "Units",
+			                CALCULATE (
+			                    SUM ( g_bowler_orders[OrderQuantityBase] ),
+			                    NOT ISBLANK ( g_bowler_orders[ActualShipDate] )
+			                )
+			        ),
+			        KEEPFILTERS (
+			            NOT (
+			                g_bowler_orders[Orderstatuslineharmonized]
+			                    IN { "CANCELLED", "NOT RELEVANT" }
+			            )
+			        )
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",    _Base,
+			        "/1000", DIVIDE ( _Base, 1000 ),
+			        "M",     DIVIDE ( _Base, 1000000 ),
+			        _Base    // Default if nothing selected
+			    )
+			
+			```
+		formatString: #,0
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: f3734862-5b68-4ef2-b9dc-976aebbcb5eb
+
+	measure 'Order Closed Dynamic' =
+			
+			VAR _base =
+			
+			SWITCH(
+			    SELECTEDVALUE('slc_Metric'[Metric]),
+			    "Revenue", CALCULATE(SUMX (g_bowler_orders, COALESCE ( g_bowler_orders[OrderQuantityBase], 0 ) * COALESCE ( g_bowler_orders[UnitPriceUsd], 0 )),g_bowler_orders[OrderStatusLineHarmonized]="COMPLETED"),
+			    "Units", SUM(g_bowler_orders[OrderQuantityBase])
+			)
+			
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		displayFolder: Testing
+		lineageTag: 75c543a0-f650-4dbf-a8b5-5ebd9194f491
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Order In Dynamic' = ```
+			
+			VAR _filteredBase =
+			    CALCULATE (
+			        SWITCH (
+			            SELECTEDVALUE ( 'slc_Metric'[Metric] ),
+			            "Revenue",
+			                 SUM ( g_bowler_orders[TotalPriceUsd] ),
+			            "Units",
+			                SUM ( g_bowler_orders[OrderQuantityBase] )
+			        ),
+			        KEEPFILTERS (
+			        NOT ( g_bowler_orders[Orderstatuslineharmonized] IN { "CANCELLED", "NOT RELEVANT" } )
+			        )
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1000", DIVIDE ( _filteredBase, 1000 ),
+			        "M",     DIVIDE ( _filteredBase, 1000000 ),
+			        _filteredBase
+			    )
+			
+			```
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: db8398d5-2063-4df9-af89-2090ea2fbad5
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Order Amount USD' =
+			
+			SUMX (
+			    g_bowler_orders,
+			    COALESCE ( g_bowler_orders[OrderQuantityBase], 0 )
+			    * COALESCE ( g_bowler_orders[UnitPriceUsd], 0 )
+			)
+		displayFolder: Fixed Measures
+		lineageTag: 0e2a9f9a-51e8-4bfa-91ff-836342249a2b
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Order Delivered Dynamic' =
+			
+			VAR _filteredBase =
+			    CALCULATE (
+			        SWITCH (
+			            SELECTEDVALUE ( 'slc_Metric'[Metric] ),
+			            "Revenue",
+			                SUMX (
+			                    g_bowler_orders,
+			                    COALESCE ( g_bowler_orders[DeliveredQuantityBase], 0 )
+			                        * COALESCE ( g_bowler_orders[UnitPriceUsd], 0 )
+			                ),
+			            "Units",
+			                SUM ( g_bowler_orders[DeliveredQuantityBase] )
+			        ),
+			        KEEPFILTERS (
+			            NOT ( g_bowler_orders[Orderstatuslineharmonized] IN { "CANCELLED", "NOT RELEVANT" } )
+			        )
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1000", DIVIDE ( _filteredBase, 1000 ),
+			        "M",     DIVIDE ( _filteredBase, 1000000 ),
+			        _filteredBase
+			    )
+		formatString: 0
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 985ebf63-1be9-4547-9eb8-e9b5e8326b38
+
+	measure 'Fin. Gap Actual to PRJ' = [Fin. Actuals Dynamic]-[Fin. Projection Scenario Dynamic]
+		formatString: #,0
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 874e16a5-9a03-4be6-b241-09c36c5efd75
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Order In Dynamic Requested FY' = ```
+			
+			VAR _today   = TODAY()
+			VAR _fyStart = DATE( YEAR(_today) - IF( MONTH(_today) < 10, 1, 0 ), 10, 1 )
+			VAR _fyEnd   = EOMONTH( _fyStart, 11 )  -- last day of September
+			VAR _base =
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Metric'[Metric] ),
+			        "Revenue",
+			            SUMX (
+			                FILTER (
+			                    g_bowler_orders,
+			                    g_bowler_orders[RequestedDeliveryDate] >= _fyStart
+			                        && g_bowler_orders[RequestedDeliveryDate] <= _fyEnd
+			                ),
+			                COALESCE ( g_bowler_orders[OrderQuantityBase], 0 )
+			                    * COALESCE ( g_bowler_orders[UnitPriceUsd], 0 )
+			            ),
+			        "Units",
+			            CALCULATE (
+			                SUM ( g_bowler_orders[OrderQuantityBase] ),
+			                g_bowler_orders[RequestedDeliveryDate] >= _fyStart,
+			                g_bowler_orders[RequestedDeliveryDate] <= _fyEnd
+			            ),
+			        BLANK()
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1000", DIVIDE ( _base, 1000 ),
+			        "M",     DIVIDE ( _base, 1000000 ),
+			        _base
+			    )
+			
+			```
+		displayFolder: Testing
+		lineageTag: 6517b910-b4b0-4917-a4cb-a0767c33cc23
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Order In Dynamic (Ext)' =
+			
+			CALCULATE (
+			    [Order In Dynamic],
+			    KEEPFILTERS ( g_bowler_orders[SalesDistChannelHarmonizedValid] IN { "External"} )
+			)
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: e9e21a02-f590-49db-845f-19e27d6d91f7
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Order Open Dynamic (Ext)' =
+			
+			CALCULATE (
+			    [Order Open Dynamic],
+			    KEEPFILTERS ( g_bowler_orders[SalesDistChannelHarmonized] IN { "External"} )
+			)
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 1d4ee860-1eea-4e5a-b845-89bafe5d1c83
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Order In Period (Ext)' = ```
+			
+			VAR _minSel = MINX(ALLSELECTED('g_dimdate_analytics_ipd'[CalendarDate]), 'g_dimdate_analytics_ipd'[CalendarDate])
+			VAR _maxSel = MAXX(ALLSELECTED('g_dimdate_analytics_ipd'[CalendarDate]), 'g_dimdate_analytics_ipd'[CalendarDate])
+			RETURN
+			CALCULATE (
+			    [Order In Dynamic (Ext)],
+			    -- kill active CreateDate filter from DimDate
+			    REMOVEFILTERS ( g_bowler_orders[CreateDate] ),
+			    -- use RequestedDeliveryDate for the current DimDate month
+			    USERELATIONSHIP ( g_bowler_orders[_nkeyRequestedDeliveryDate], 'g_dimdate_analytics_ipd'[skeyDay] ),
+			    -- window constraints
+			    g_bowler_orders[CreateDate] <= _maxSel,
+			    g_bowler_orders[RequestedDeliveryDate] >= _minSel,
+			    g_bowler_orders[RequestedDeliveryDate] <= _maxSel
+			)
+			
+			```
+		formatString: #,0
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 92ef9483-12a8-4ab7-a39d-81c29e3a6cd3
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Order Backlog Period (Ext)' = ```
+			
+			-- CreateDate < min selected; ActualShipDate within selected window
+			VAR _minSel =
+			    CALCULATE ( MIN ( 'g_dimdate_analytics_ipd'[CalendarDate] ),
+			                ALLSELECTED ( 'g_dimdate_analytics_ipd'[CalendarDate] ) )
+			VAR _maxSel =
+			    CALCULATE ( MAX ( 'g_dimdate_analytics_ipd'[CalendarDate] ),
+			                ALLSELECTED ( 'g_dimdate_analytics_ipd'[CalendarDate] ) )
+			VAR _value =
+			    CALCULATE (
+			        [Order In Dynamic (Ext)],
+			        REMOVEFILTERS ( g_bowler_orders[ActualShipDate], g_bowler_orders[CreateDate] ),
+			        KEEPFILTERS ( g_bowler_orders[CreateDate] < _minSel ),
+			        KEEPFILTERS ( g_bowler_orders[ActualShipDate] >= _minSel
+			                   && g_bowler_orders[ActualShipDate] <= _maxSel )
+			    )
+			RETURN
+			    IF ( ISBLANK ( _value ) || _value = 0, "No BackLog", _value )
+			
+			```
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 8f8f03ba-b599-4646-a4d6-cd5731b81047
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Order In Future Period (Ext)' = ```
+			
+			-- CreateDate ≤ max selected; RequestedDeliveryDate > max selected
+			
+			VAR _minSel =
+			    CALCULATE ( MIN ( 'g_dimdate_analytics_ipd'[CalendarDate] ), ALLSELECTED ( 'g_dimdate_analytics_ipd'[CalendarDate] ) )
+			VAR _maxSel =
+			    CALCULATE ( MAX ( 'g_dimdate_analytics_ipd'[CalendarDate] ), ALLSELECTED ( 'g_dimdate_analytics_ipd'[CalendarDate] ) )
+			RETURN
+			CALCULATE (
+			    [Order In Dynamic (Ext)],
+			    REMOVEFILTERS ( g_bowler_orders[RequestedDeliveryDate], g_bowler_orders[CreateDate] ),
+			    KEEPFILTERS ( g_bowler_orders[CreateDate] <= _maxSel ),
+			    KEEPFILTERS ( g_bowler_orders[RequestedDeliveryDate] > _maxSel )
+			)
+			
+			```
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 05961812-8b78-45c9-bc43-4c5f628b3943
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Diff Order to Budget %' = ```
+			
+			VAR _order  = [Order In Period (Ext)]
+			VAR _budget = [Fin. Budget Dynamic]
+			RETURN
+			    DIVIDE( _order - _budget, _budget )
+			
+			```
+		formatString: 0.00%;-0.00%;0.00%
+		displayFolder: Health Metrics
+		lineageTag: 59b89262-12ca-402e-b295-ac450e7636c4
+
+	measure 'Fin. Projection Scenario Dynamic' = ```
+			
+			
+			SWITCH (
+			    SELECTEDVALUE ( 'slc_Scenario'[Scenario] ),
+			    "BUD",[Fin. Budget Dynamic],
+			    "PRJ1",CALCULATE([Fin. Projection Dynamic],g_bowler_finance_projections_ipd_cy[Scenario]="PRJ1"),
+			    "PRJ2",CALCULATE([Fin. Projection Dynamic],g_bowler_finance_projections_ipd_cy[Scenario]="PRJ2"),
+			    "PRJ3",CALCULATE([Fin. Projection Dynamic],g_bowler_finance_projections_ipd_cy[Scenario]="PRJ3")
+			)
+			
+			```
+		formatString: #,0
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: fc97394d-8525-4340-a596-147ecc94c518
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'test rev order' =
+			SUMX (
+			                    g_bowler_orders,
+			                    COALESCE ( g_bowler_orders[OrderQuantityBase], 0 )
+			                        * COALESCE ( g_bowler_orders[UnitPriceUsd], 0 ))
+		displayFolder: Testing
+		lineageTag: 1a9030e5-2f1f-4295-a80a-263930964c58
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Test current minus open' = [Order In Period (Ext)]-[Order Open Dynamic (Ext)]
+		displayFolder: Testing
+		lineageTag: 9d1dad6d-ef3a-4f9c-b3dc-deeb2e327d5f
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Order Open Period (Ext)' = ```
+			
+			-- OrderCreateDate ≤ max selected; RequestedDeliveryDate within selected window
+			
+			VAR _minSel =
+			    CALCULATE ( MIN ( 'g_dimdate_analytics_ipd'[CalendarDate] ), ALLSELECTED ( 'g_dimdate_analytics_ipd'[CalendarDate] ) )
+			VAR _maxSel =
+			    CALCULATE ( MAX ( 'g_dimdate_analytics_ipd'[CalendarDate] ), ALLSELECTED ('g_dimdate_analytics_ipd'[CalendarDate] ) )
+			RETURN
+			CALCULATE (
+			    [Order Open Dynamic (Ext)],
+			    REMOVEFILTERS ( g_bowler_orders[RequestedDeliveryDate], g_bowler_orders[CreateDate] ),
+			    KEEPFILTERS ( g_bowler_orders[CreateDate] <= _maxSel ),
+			    KEEPFILTERS ( g_bowler_orders[RequestedDeliveryDate] >= _minSel && g_bowler_orders[RequestedDeliveryDate] <= _maxSel )
+			)
+			
+			```
+		formatString: #,0
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: baf3c5b3-18b6-4772-9714-110227e4ed2b
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Order Delivered Dynamic (Ext)' =
+			
+			CALCULATE (
+			    [Order Delivered Dynamic],
+			    KEEPFILTERS ( g_bowler_orders[SalesDistChannelHarmonized] IN { "External"} )
+			)
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 4a73b801-93f2-431d-91f8-8f7403ede721
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Order Delivered Period (Ext)' = ```
+			
+			-- OrderCreateDate ≤ max selected; RequestedDeliveryDate within selected window
+			
+			VAR _minSel =
+			    CALCULATE ( MIN ( 'g_dimdate_analytics_ipd'[CalendarDate] ), ALLSELECTED ( 'g_dimdate_analytics_ipd'[CalendarDate] ) )
+			VAR _maxSel =
+			    CALCULATE ( MAX ( 'g_dimdate_analytics_ipd'[CalendarDate] ), ALLSELECTED ('g_dimdate_analytics_ipd'[CalendarDate] ) )
+			RETURN
+			CALCULATE (
+			    [Order Delivered Dynamic (Ext)],
+			    REMOVEFILTERS ( g_bowler_orders[RequestedDeliveryDate], g_bowler_orders[CreateDate] ),
+			    KEEPFILTERS ( g_bowler_orders[CreateDate] <= _maxSel ),
+			    KEEPFILTERS ( g_bowler_orders[RequestedDeliveryDate] >= _minSel && g_bowler_orders[RequestedDeliveryDate] <= _maxSel )
+			)
+			
+			```
+		formatString: #,0
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 10c52946-b58d-48da-9fae-87e1a212348a
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Order Shipped Dynamic (Ext)' =
+			
+			CALCULATE (
+			    [Order Shipped Dynamic],
+			    KEEPFILTERS ( g_bowler_orders[SalesDistChannelHarmonized] IN { "External"} )
+			)
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 90c67f14-7c42-4883-9e79-128de40eba82
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Order Shipped Period (Ext)' = ```
+			
+			-- OrderCreateDate ≤ max selected; RequestedDeliveryDate within selected window
+			
+			VAR _minSel =
+			    CALCULATE ( MIN ( 'g_dimdate_analytics_ipd'[CalendarDate] ), ALLSELECTED ( 'g_dimdate_analytics_ipd'[CalendarDate] ) )
+			VAR _maxSel =
+			    CALCULATE ( MAX ( 'g_dimdate_analytics_ipd'[CalendarDate] ), ALLSELECTED ('g_dimdate_analytics_ipd'[CalendarDate] ) )
+			RETURN
+			CALCULATE (
+			    [Order Shipped Dynamic (Ext)],
+			    REMOVEFILTERS ( g_bowler_orders[RequestedDeliveryDate], g_bowler_orders[CreateDate] ),
+			    KEEPFILTERS ( g_bowler_orders[CreateDate] <= _maxSel ),
+			    KEEPFILTERS ( g_bowler_orders[RequestedDeliveryDate] >= _minSel && g_bowler_orders[RequestedDeliveryDate] <= _maxSel )
+			)
+			
+			```
+		formatString: #,0
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: c6776020-e998-46b9-b04c-e6fdb71d820f
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'BO Dist. Dynamic' = ```
+			
+			VAR _TargetDate =
+			    MAX ( g_dimdate_analytics_ipd[CalendarDate] )
+			VAR _LastSnapDate =
+			    CALCULATE (
+			        MAX ( g_bowler_backorder[SnapshotDate] ),
+			        REMOVEFILTERS ( g_bowler_backorder[SnapshotDate] ),
+			        DATEVALUE ( g_bowler_backorder[SnapshotDate] ) <= _TargetDate
+			    )
+			VAR _Base =
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Metric'[Metric] ),
+			        "Revenue",
+			            CALCULATE (
+			                SUM ( g_bowler_backorder[DistroBOValue2] ),
+			                g_bowler_backorder[SnapshotDate] = _LastSnapDate
+			            ),
+			        "Units",
+			            CALCULATE (
+			                SUM ( g_bowler_backorder[DistroBOQty] ),
+			                g_bowler_backorder[SnapshotDate] = _LastSnapDate
+			            )
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1000", DIVIDE ( _Base, 1000 ),
+			        "M",     DIVIDE ( _Base, 1000000 ),
+			        _Base
+			    )
+			
+			```
+		formatString: #,0
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: dbfd91a5-87b1-48c5-a032-b7e7ded2426a
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Fin. Gap Actual to BUD' = [Fin. Actuals Dynamic]-[Fin. Budget Dynamic]
+		formatString: #,0
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: c82d7569-9354-4752-a5ab-ad2dbb6f6e38
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Order Processed (Ext)' = [Order In Period (Ext)]-[Order Open Period (Ext)]
+		formatString: #,0
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 768183c9-a459-4cef-afa4-12b0e6ef3e99
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Order Shipped & Delivered (Ext)' = [Order Delivered Period (Ext)]+[Order Shipped Period (Ext)]
+		formatString: #,0
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: a4c98c5d-acc0-46d4-9437-33346eba0ce3
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'BO Supply Dynamic' = ```
+			
+			VAR _TargetDate =
+			    MAX ( g_dimdate_analytics_ipd[DateKeySPLY] )
+			VAR _LastSnapDate =
+			    CALCULATE (
+			        MAX ( g_bowler_backorder[SnapshotDate] ),
+			        REMOVEFILTERS ( g_bowler_backorder[SnapshotDate] ),
+			        g_bowler_backorder[SnapshotDate] <= _TargetDate
+			    )
+			VAR _Base =
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Metric'[Metric] ),
+			        "Revenue",
+			            CALCULATE (
+			                SUM ( g_bowler_backorder[SupplyRelatedBOValue2] ),
+			                KEEPFILTERS ( g_bowler_backorder[SnapshotDate] = _LastSnapDate )
+			            ),
+			        "Units",
+			            CALCULATE (
+			                SUM ( g_bowler_backorder[SupplyRelatedBOQty] ),
+			                KEEPFILTERS ( g_bowler_backorder[SnapshotDate] = _LastSnapDate )
+			            )
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1000", DIVIDE ( _Base, 1000 ),
+			        "M",     DIVIDE ( _Base, 1000000 ),
+			        _Base
+			    )
+			
+			```
+		formatString: #,0
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 71a32395-b2b0-463f-a8d6-f421b5142eb8
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Inventory Unrestricted Dynamic' = ```
+			
+			VAR _TargetDate =
+			    MAX ( g_dimdate_analytics_ipd[CalendarDate] )    -- latest day in current selection
+			VAR _LastSnapDate =
+			    CALCULATE (
+			        MAX ( g_bowler_inventory[SnapshotDate] ),     -- latest snapshot ≤ target date
+			        REMOVEFILTERS ( g_bowler_inventory[SnapshotDate] ),
+			        g_bowler_inventory[SnapshotDate] <= _TargetDate
+			    )
+			VAR _Base =
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Metric'[Metric] ),
+			        "Revenue",
+			            CALCULATE (
+			                SUM ( g_bowler_inventory[UnRestrictedValue] ),
+			                g_bowler_inventory[SnapshotDate] = _LastSnapDate
+			            ),
+			        "Units",
+			            CALCULATE (
+			                SUM ( g_bowler_inventory[UnRestrictedQty] ),
+			                g_bowler_inventory[SnapshotDate] = _LastSnapDate
+			            )
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1000", DIVIDE ( _Base, 1000 ),
+			        "M",     DIVIDE ( _Base, 1000000 ),
+			        _Base
+			    )
+			
+			```
+		formatString: #,0
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: ead4d4d8-f62f-4022-999d-ed5a813f8e54
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'BO Total Dynamic' = [BO Dist. Dynamic] + [BO Supply Dynamic]
+		formatString: #,0
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 8f52ca02-b262-4f1b-8bcf-3bfe45350d9d
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Inventory Restricted Dynamic' = ```
+			
+			VAR _TargetDate =
+			    MAX ( g_dimdate_analytics_ipd[CalendarDate] )    -- latest day in current selection
+			VAR _LastSnapDate =
+			    CALCULATE (
+			        MAX ( g_bowler_inventory[SnapshotDate] ),     -- latest snapshot ≤ target date
+			        REMOVEFILTERS ( g_bowler_inventory[SnapshotDate] ),
+			        g_bowler_inventory[SnapshotDate] <= _TargetDate
+			    )
+			VAR _Base =
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Metric'[Metric] ),
+			        "Revenue",
+			            CALCULATE (
+			                SUM ( g_bowler_inventory[RestrictedValue] ),
+			                g_bowler_inventory[SnapshotDate] = _LastSnapDate
+			            ),
+			        "Units",
+			            CALCULATE (
+			                SUM ( g_bowler_inventory[RestrictedQty] ),
+			                g_bowler_inventory[SnapshotDate] = _LastSnapDate
+			            )
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1000", DIVIDE ( _Base, 1000 ),
+			        "M",     DIVIDE ( _Base, 1000000 ),
+			        _Base
+			    )
+			
+			```
+		formatString: #,0
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 163e5740-9417-4550-bafa-e4774a406962
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Fin. Budget LY Dynamic' =
+			
+			VAR _base =
+			
+			SWITCH(
+			    SELECTEDVALUE('slc_Metric'[Metric]),
+			    "Revenue", CALCULATE(SUM(g_bowler_finance_budget_ipd_cy[BudgetRevenuePYRate]),g_bowler_finance_budget_ipd_cy[RPTCurrency]="USD",g_bowler_finance_budget_ipd_cy[ReAccount]="R_PL_Rev",g_bowler_finance_budget_ipd_cy[Category]="BUD_FINAL_LYA"),
+			    "Units",  CALCULATE(SUM(g_bowler_finance_budget_ipd_cy[BudgetUnits]),g_bowler_finance_budget_ipd_cy[RPTCurrency]="USD",g_bowler_finance_budget_ipd_cy[ReAccount]="R_KPI_VOLUME",g_bowler_finance_budget_ipd_cy[Category]="BUD_FINAL_LYA")
+			)
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 13af776b-8631-4e66-b294-b92b71b4572a
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Orders vs Budget %' = ```
+			
+			VAR _orders = [Order In Period (Ext)]
+			VAR _budget = [Fin. Budget Dynamic]
+			RETURN
+			IF(
+			    ISBLANK(_orders) && ISBLANK(_budget),
+			    BLANK(),
+			    DIVIDE(_orders, _budget)
+			)
+			
+			```
+		formatString: 0%;-0%;0%
+		displayFolder: Health Metrics
+		lineageTag: 42b07a43-45fe-4eae-8c43-a65104ee5f4b
+
+	measure 'Days in Selected Period' =
+			
+			VAR _selStart = MIN ( g_dimdate_analytics_ipd[CalendarDate] )
+			VAR _selEnd   = MAX ( g_dimdate_analytics_ipd[CalendarDate] )
+			RETURN
+			IF (
+			    ISBLANK(_selStart) || ISBLANK(_selEnd) || _selStart > _selEnd,
+			    0,
+			    DATEDIFF ( _selStart, _selEnd, DAY ) + 1
+			)
+		formatString: 0
+		displayFolder: Helpers
+		lineageTag: 634b7099-867f-4172-982d-e9c9e7e8c304
+
+	measure 'Working Days in Selected Period' =
+			
+			COUNTROWS (
+			    FILTER (
+			        VALUES ( g_dimdate_analytics_ipd[CalendarDate].[Date]),
+			        WEEKDAY ( g_dimdate_analytics_ipd[CalendarDate].[Date], 2 ) <= 5
+			    )
+			)
+		formatString: 0
+		displayFolder: Helpers
+		lineageTag: 13ff24a9-e0b6-4b3d-bf57-e311c0122430
+
+	measure 'Days Elapsed (to Today) in Selection' =
+			
+			VAR _selStart = MIN ( g_dimdate_analytics_ipd[CalendarDate] )
+			VAR _selEnd   = MAX ( g_dimdate_analytics_ipd[CalendarDate] )
+			VAR _effEnd   = MIN ( TODAY(), _selEnd )
+			RETURN
+			IF (
+			    ISBLANK(_selStart) || ISBLANK(_effEnd) || _selStart > _effEnd,
+			    0,
+			    COUNTROWS (
+			        FILTER (
+			            VALUES ( g_dimdate_analytics_ipd[CalendarDate] ),
+			            g_dimdate_analytics_ipd[CalendarDate] >= _selStart &&
+			            g_dimdate_analytics_ipd[CalendarDate] <= _effEnd &&
+			            WEEKDAY ( g_dimdate_analytics_ipd[CalendarDate], 2 ) <= 5
+			        )
+			    )
+			)
+		formatString: 0
+		displayFolder: Helpers
+		lineageTag: 01a59c7a-07ef-4da3-a4be-ad5835b497b6
+
+	measure 'Run-Rate Forecast (Linear, Selection)' =
+			
+			VAR _elapsed = [Working Days (Selected, Elapsed)]
+			VAR _total   = [Working Days (Selected, Total)]
+			VAR _orders  = [Order In Period (Ext)]
+			RETURN
+			IF(
+			    ISBLANK(_orders) || _elapsed = 0 || _total = 0,
+			    BLANK(),
+			    DIVIDE( _orders, _elapsed ) * _total
+			)
+		formatString: #,0
+		displayFolder: Health Metrics
+		lineageTag: d3891f04-32b3-4f5c-b654-2901566fe5b0
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Run-Rate Forecast vs Budget % (Selection)' = ```
+			
+			DIVIDE( [Run-Rate Forecast (Linear, Selection)], [Fin. Budget Dynamic] )
+			
+			```
+		formatString: 0%;-0%;0%
+		displayFolder: Health Metrics
+		lineageTag: 6389a102-6d23-4744-aee4-d01fcdac135b
+
+	measure 'Run-Rate % Flag' = ```
+			
+			VAR p = [Run-Rate Forecast vs Budget % (Selection)]
+			RETURN
+			IF(
+			    ISBLANK(p),
+			    BLANK(),
+			    SWITCH(
+			        TRUE(),
+			        p >= 1.00, "🟢 Healthy",
+			        p >= 0.95, "🟡 Watch-Out",
+			                 "🔴 Critical"
+			    )
+			)
+			
+			```
+		displayFolder: Flag
+		lineageTag: 6bbf1d9b-22ce-4875-b7c9-a28110ea49f4
+
+	measure 'General Status Flag Text Color' =
+			
+			VAR _flag = [Run-Rate % Flag]
+			RETURN
+			SWITCH(
+			    TRUE(),
+			    ISBLANK(_flag), "#808080",         -- grey for no value
+			    CONTAINSSTRING(_flag, "Healthy"),   "#3D5C28",   -- deep green
+			    CONTAINSSTRING(_flag, "Watch-Out"), "#7A5C00",   -- muted amber
+			    CONTAINSSTRING(_flag, "Critical"),  "#B23E3E",   -- deep red
+			    "#808080"                           -- fallback grey
+			)
+		displayFolder: Flag
+		lineageTag: 7ba9d141-1a4a-49d5-b064-5b8b5eaf015e
+
+	measure 'General Status Flag Background Color' = ```
+			
+			VAR _flag = [Run-Rate % Flag]
+			RETURN
+			SWITCH(
+			    TRUE(),
+			    ISBLANK(_flag), "#F2F2F2",          -- light grey for no value
+			    CONTAINSSTRING(_flag, "Healthy"),   "#BEDC96",   -- soft green
+			    CONTAINSSTRING(_flag, "Watch-Out"), "#FFE9A3",   -- soft yellow
+			    CONTAINSSTRING(_flag, "Critical"),  "#F0A0A0",   -- soft red
+			    "#F2F2F2"                           -- fallback grey
+			)
+			
+			```
+		displayFolder: Flag
+		lineageTag: 2aa52cbd-bf1b-4f34-ade1-f6ee7f34e7f7
+
+	measure 'Inventory Coverage Flag' = ```
+			
+			VAR r = [Inventory-to-Budget Gap Ratio]
+			RETURN
+			IF(
+			    ISBLANK(r),
+			    BLANK(),
+			    SWITCH(
+			        TRUE(),
+			        r >= 1.2, "🟢 Healthy",
+			        r >= 1.0, "🟡 Watch-Out",
+			                 "🔴 Critical"
+			    )
+			)
+			
+			```
+		displayFolder: Flag
+		lineageTag: b1ecb66d-5f38-4fc2-95c3-f9caae2ccde3
+
+	measure 'Inventory-to-Budget Gap Ratio' = ```
+			
+			VAR _budget = [Fin. Budget Dynamic]
+			VAR _orders = [Order In Period (Ext)]
+			VAR _inv    = [Inventory Unrestricted Dynamic]    -- already excludes restricted inventory
+			VAR _remaining_budget = _budget - _orders
+			RETURN
+			IF(
+			    ISBLANK(_budget) || ISBLANK(_orders) || ISBLANK(_inv),
+			    BLANK(),
+			    DIVIDE(_inv, _remaining_budget)
+			)
+			
+			```
+		displayFolder: Health Metrics
+		lineageTag: bb4c6515-d944-444a-a846-1b3232a1811d
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. Cost Actual' =
+			
+			VAR _base =
+			CALCULATE(SUM(g_bowler_finance_actuals_ipd_cy[ActCOSBUDRate]),g_bowler_finance_actuals_ipd_cy[RptCurrency]="USD",g_bowler_finance_actuals_ipd_cy[GLRptCatg]="COGS-Other")
+			
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		displayFolder: Fixed Measures
+		lineageTag: 478b2e38-eb5c-47dc-bee5-837139d6cb40
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. GP Actual' = [Fin. Rev Actuals] - [Fin. Cost Actual]
+		formatString: #,0
+		displayFolder: Fixed Measures
+		lineageTag: bd201d0e-ded2-4293-a461-5f0deadd7bfb
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Fin. Rev Actuals' =
+			
+			VAR _base =
+			CALCULATE(SUM(g_bowler_finance_actuals_ipd_cy[ActRevBUDRate]),g_bowler_finance_actuals_ipd_cy[RptCurrency]="USD",g_bowler_finance_actuals_ipd_cy[GLRptCatg]="Other Revenue")
+			
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		formatString: #,0
+		displayFolder: Fixed Measures
+		lineageTag: d4c326b2-3351-4e98-a4de-4454386b3697
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Fin. Cost Budget' =
+			
+			VAR _base =
+			CALCULATE(SUM(g_bowler_finance_budget_ipd_cy[BudgetCOS]),g_bowler_finance_budget_ipd_cy[RPTCurrency]="USD",g_bowler_finance_budget_ipd_cy[ReAccount]="R_PL_COGS",g_bowler_finance_budget_ipd_cy[Category]="BUD_FINAL")
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		displayFolder: Fixed Measures
+		lineageTag: 67a79fbf-1101-4d8c-a026-31f3222cbbe5
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. Cost Projection' = ```
+			
+			VAR _base =
+			CALCULATE(SUM(g_bowler_finance_projections_ipd_cy[ProjCOSBUDRate]))
+			
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+			
+			```
+		displayFolder: Fixed Measures
+		lineageTag: c6f5197e-19f3-4bcf-853a-be4c3ebe2778
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. Cost Scenario' = ```
+			
+			
+			SWITCH (
+			    SELECTEDVALUE ( 'slc_Scenario'[Scenario] ),
+			    "BUD",[Fin. Cost Budget],
+			    "PRJ1",CALCULATE([Fin. Cost Projection],g_bowler_finance_projections_ipd_cy[Scenario]="PRJ1"),
+			    "PRJ2",CALCULATE([Fin. Cost Projection],g_bowler_finance_projections_ipd_cy[Scenario]="PRJ2"),
+			    "PRJ3",CALCULATE([Fin. Cost Projection],g_bowler_finance_projections_ipd_cy[Scenario]="PRJ3")
+			)
+			
+			```
+		displayFolder: Fixed Measures
+		lineageTag: 2f2aa943-739d-46d4-bba2-10832cc82fac
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. GP Scenario' = [Fin. Rev Scenario] - [Fin. Cost Scenario]
+		displayFolder: Fixed Measures
+		lineageTag: 753c3f70-b7dc-4501-bd75-c94e1fa7913b
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. Rev Scenario' = ```
+			
+			
+			SWITCH (
+			    SELECTEDVALUE ( 'slc_Scenario'[Scenario] ),
+			    "BUD",[Fin. Rev Budget],
+			    "PRJ1",CALCULATE([Fin. Rev Projection],g_bowler_finance_projections_ipd_cy[Scenario]="PRJ1"),
+			    "PRJ2",CALCULATE([Fin. Rev Projection],g_bowler_finance_projections_ipd_cy[Scenario]="PRJ2"),
+			    "PRJ3",CALCULATE([Fin. Rev Projection],g_bowler_finance_projections_ipd_cy[Scenario]="PRJ3")
+			)
+			
+			```
+		displayFolder: Fixed Measures
+		lineageTag: 63711bab-cba1-4cd1-b748-0dcab201ee71
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. Rev Budget' =
+			
+			VAR _base =
+			CALCULATE(SUM(g_bowler_finance_budget_ipd_cy[BudgetRevenue]),g_bowler_finance_budget_ipd_cy[RPTCurrency]="USD",g_bowler_finance_budget_ipd_cy[ReAccount]="R_PL_Rev",g_bowler_finance_budget_ipd_cy[Category]="BUD_FINAL")
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		displayFolder: Fixed Measures
+		lineageTag: 72fde004-b66c-495b-afe8-50fa6175f82c
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. Rev Projection' = ```
+			
+			VAR _base =
+			CALCULATE(SUM(g_bowler_finance_projections_ipd_cy[ProjRevenueBUDRate]))
+			
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+			
+			```
+		displayFolder: Fixed Measures
+		lineageTag: 5d30acf0-d19d-43d9-84c6-ba2d6236dfb1
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. GP Budget' = [Fin. Rev Budget] - [Fin. Cost Budget]
+		displayFolder: Fixed Measures
+		lineageTag: c9b487f0-945c-4822-a453-51888e15ada7
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Mktg. # of Cust. Ordering' = ```
+			
+			VAR _filteredBase =
+			    CALCULATE (
+			                 DISTINCTCOUNTNOBLANK( ( g_bowler_orders[ShipToName] )
+			        ),
+			        KEEPFILTERS (
+			        NOT ( g_bowler_orders[Orderstatuslineharmonized] IN { "CANCELLED", "NOT RELEVANT" } )
+			        )
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1000", DIVIDE ( _filteredBase, 1000 ),
+			        "M",     DIVIDE ( _filteredBase, 1000000 ),
+			        _filteredBase
+			    )
+			
+			```
+		formatString: #,0.00
+		displayFolder: Fixed Measures
+		lineageTag: 874a2d5b-9b44-46c1-b79d-3046aab58ee9
+
+	measure 'Selected Category' =
+			
+			VAR Metric = SELECTEDVALUE(fin_v_reltioproduct_hier[Level1Desc])
+			VAR ValueCount = DISTINCTCOUNT(fin_v_reltioproduct_hier[Level1Desc])
+			
+			RETURN
+			    SWITCH(
+			        TRUE(),
+			        ValueCount = 0, "IPDTitle",
+			        ValueCount > 1, "Multiple",
+			        Metric
+			    )
+		displayFolder: Titles
+		lineageTag: d1047c53-aef3-4cc5-ac65-1e1eea13d474
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Run-Rate vs Budget (Label)' = ```
+			
+			VAR _p = [Run-Rate Forecast vs Budget % (Selection)]
+			VAR _flag =
+			    SWITCH(
+			        TRUE(),
+			        ISBLANK(_p), "⚪",
+			        _p >= 1.00, "🟢",
+			        _p >= 0.95, "🟠",
+			        "🔴"
+			    )
+			RETURN
+			_flag & " Run-Rate"
+			
+			```
+		displayFolder: titles
+		lineageTag: 95556e13-07ed-46f1-9d55-0f1ffe1eccca
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'BO (Label)' = ```
+			
+			VAR _p = [BO Total Dynamic]
+			VAR _flag =
+			    SWITCH(
+			        TRUE(),
+			        ISBLANK(_p), "⚪",
+			        _p >= 1.00, "🟢",
+			        _p >= 0.95, "🟠",
+			        "🔴"
+			    )
+			RETURN
+			_flag & " BO Rate"
+			
+			```
+		displayFolder: Titles
+		lineageTag: 30475e98-2124-4363-bc84-9434fca8fd0a
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Working Days (Selected, Elapsed)' = ```
+			
+			VAR _cutoff =
+			    MIN ( TODAY(), MAX ( g_dimdate_analytics_ipd[DateKeySPLY] ) )
+			RETURN
+			COUNTROWS (
+			    FILTER (
+			        VALUES ( g_dimdate_analytics_ipd[DateKeySPLY] ),
+			        g_dimdate_analytics_ipd[DateKeySPLY] <= _cutoff
+			            && WEEKDAY ( g_dimdate_analytics_ipd[DateKeySPLY], 2 ) <= 5
+			            -- && g_dimdate_analytics_ipd[IsHoliday] = FALSE()   -- (optional)
+			    )
+			)
+			
+			```
+		displayFolder: Helpers
+		lineageTag: 028ddc95-e7a4-4e63-b567-23d19f9d0e4a
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Working Days (Selected, Total)' =
+			
+			COUNTROWS (
+			    FILTER (
+			        VALUES ( g_dimdate_analytics_ipd[DateKeySPLY] ),
+			        WEEKDAY ( g_dimdate_analytics_ipd[DateKeySPLY], 2 ) <= 5
+			        -- && g_dimdate_analytics_ipd[IsHoliday] = FALSE()   -- (optional) exclude holidays if you have this column
+			    )
+			)
+		displayFolder: Helpers
+		lineageTag: 8bf23bb1-7682-425c-8622-1da928c44510
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Working Days % Elapsed' =
+			
+			DIVIDE ( [Working Days (Selected, Elapsed)], [Working Days (Selected, Total)] )
+		formatString: 0.00%;-0.00%;0.00%
+		displayFolder: Helpers
+		lineageTag: 6e43f8cf-8020-4dd1-8cb6-0af2238590a6
+
+	measure 'Label Bowler top Cards' = "Δ vs Target"
+		displayFolder: titles
+		lineageTag: fb5ebe2f-322b-4798-872d-02a1469902c8
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'PlaceHolder Value' = ```
+			0.5
+			
+			```
+		formatString: 0%;-0%;0%
+		displayFolder: Fixed Measures
+		lineageTag: 644c4a00-d2c5-434c-8bd2-a17c5e62e86e
+
+	measure 'DIOH Unrestricted Inv. Dynamic' = ```
+			
+			VAR _Days = 120
+			RETURN _Days
+			
+			
+			```
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: d093cfcd-b464-4d94-9d23-73c3bc78583c
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'PlaceHolder Value 99' = 99
+		displayFolder: Testing
+		lineageTag: 8d3ff276-5409-4b4d-ac6a-f24666a9bcc5
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. % Actuals vs Budget' =
+			
+			DIVIDE([Fin. Actuals Dynamic], [Fin. Budget Dynamic], 0)-1
+		formatString: 0.00%;-0.00%;0.00%
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 3a34086a-da8c-4c72-b674-0f6a5adae95f
+
+	measure 'Fin. % Actuals vs PRJ' =
+			
+			DIVIDE([Fin. Actuals Dynamic], [Fin. Projection Scenario Dynamic], 0)-1
+		formatString: 0.00%;-0.00%;0.00%
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: b54c3599-646c-44c0-a957-dc6510e78a62
+
+	measure 'Fin. Actual vs LY Dynamic' = ```
+			
+			    [Fin. Actuals @LY fx Dynamic] - [Fin. Actuals LY Dynamic]
+			```
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 391a0440-01f2-4b71-8bbe-c8ef19422bc8
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. % Actual vs LY' = DIVIDE([Fin. Actuals @LY fx Dynamic], [Fin. Actuals LY Dynamic], 0)-1
+		formatString: 0.00%;-0.00%;0.00%
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: fbc673e3-ec19-414d-bd0d-f3e4134dea9f
+
+	measure 'Forecast Supply Dynamic' = ```
+			
+			VAR _TargetDate =
+			    MAX ( g_dimdate_analytics_ipd[DateKeySPLY])
+			VAR _LastSnapDate =
+			    CALCULATE (
+			        MAX ( g_bowler_fcst[SnapshotDate]),
+			        REMOVEFILTERS ( g_bowler_fcst[SnapshotDate]),
+			        DATEVALUE ( g_bowler_fcst[SnapshotDate]) <= _TargetDate
+			    )
+			VAR _Base =
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Metric'[Metric] ),
+			        "Revenue",
+			            BLANK(),
+			        "Units",
+			            CALCULATE (
+			                SUM ( g_bowler_fcst[ConsensuFinalForecast] ),
+			                 g_bowler_fcst[SnapshotDate] = _LastSnapDate
+			            )
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1000", DIVIDE ( _Base, 1000 ),
+			        "M",     DIVIDE ( _Base, 1000000 ),
+			        _Base
+			    )
+			
+			```
+		formatString: #,0
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: deabffdb-4016-4661-9031-d2bc6e607cd8
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Forecast Accuracy Dynamic' = 1 - CALCULATE(DIVIDE(ABS([Demand Supply Registered Dynamic]-[Forecast Supply Dynamic]),[Demand Supply Registered Dynamic]))
+		formatString: 0.00%;-0.00%;0.00%
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 6220f882-1433-4ed2-980d-34b319742dd2
+
+	measure 'Fin. ASP' =
+			
+			VAR _asp = DIVIDE([Fin. Rev Actuals], [Fin. Units Actuals])
+			RETURN
+			IF(ABS(_asp) > 10000, BLANK(), _asp)
+		formatString: #,0.00
+		displayFolder: Fixed Measures
+		lineageTag: 27db40f8-ecf0-4255-a79d-7f37aeda48a5
+
+	measure 'Fin. Units Actuals' =
+			
+			VAR _base = CALCULATE(SUM(g_bowler_finance_actuals_ipd_cy[ActUnits]),g_bowler_finance_actuals_ipd_cy[RptCurrency]="USD",g_bowler_finance_actuals_ipd_cy[GLRptCatg]="Other Revenue")
+			
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		formatString: #,0
+		displayFolder: Fixed Measures
+		lineageTag: 68d3e485-8a3f-4dfe-a07a-935ccf782a83
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Text Card Target' = "vs. target"
+		displayFolder: Titles
+		lineageTag: 8d168248-3fae-4ec0-b3b8-375213acf858
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Demand Supply Registered Dynamic' = ```
+			
+			VAR _LastSnapDate =
+			    CALCULATE (
+			        MAX ( g_bowler_demand[SnapshotDate]),
+			        REMOVEFILTERS ( g_bowler_demand[SnapshotDate])
+			    )
+			VAR _Base =
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Metric'[Metric] ),
+			        "Revenue",
+			            BLANK(),
+			        "Units",
+			            CALCULATE (
+			                SUM ( g_bowler_demand[DmdQtytot] ),
+			                 g_bowler_demand[SnapshotDate] = _LastSnapDate
+			            )
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1000", DIVIDE ( _Base, 1000 ),
+			        "M",     DIVIDE ( _Base, 1000000 ),
+			        _Base
+			    )
+			
+			```
+		formatString: #,0
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: a9b99058-ae57-4ab4-83e6-69a880ea8ecd
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Demand Supply Inventory Dynamic' = ```
+			
+			VAR _LastSnapDate =
+			    CALCULATE (
+			        MAX ( g_bowler_demand[SnapshotDate]),
+			        REMOVEFILTERS ( g_bowler_demand[SnapshotDate])
+			    )
+			VAR _Base =
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Metric'[Metric] ),
+			        "Revenue",
+			            BLANK(),
+			        "Units",
+			            CALCULATE (
+			                SUM ( g_bowler_demand[DmdInvQty] ),
+			                 g_bowler_demand[SnapshotDate] = _LastSnapDate
+			            )
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1000", DIVIDE ( _Base, 1000 ),
+			        "M",     DIVIDE ( _Base, 1000000 ),
+			        _Base
+			    )
+			
+			```
+		formatString: #,0
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 7647ad99-15cd-46a4-a8de-bc1335ddfd58
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Target Helper Forecast Accuracy' = 0.85
+		formatString: 0.00%;-0.00%;0.00%
+		displayFolder: Target
+		lineageTag: 39cd5d7a-3146-4765-87fb-9e7925647eeb
+
+	measure 'Target Helper Supply Back Order' = 0.01
+		displayFolder: Target
+		lineageTag: 3e1420d3-b648-4218-adf9-3868d1a0b106
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Target Supply Back Order' = [Target Helper Supply Back Order] * [Fin. Projection Scenario Dynamic]
+		formatString: #,0
+		displayFolder: Target
+		lineageTag: ec8a886f-078c-4601-92fa-1b803d2ae0d9
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Target Forecast Accuracy' = [Target Helper Forecast Accuracy]
+		displayFolder: Target
+		lineageTag: 6a6233b5-c12b-49bf-96f4-ef776ba81fdc
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Target Helper Inventory' = 2
+		displayFolder: Target
+		lineageTag: 9633f5ea-1306-4c77-9ff6-cae058362016
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Target Inventory' = [Fin. Projection Scenario Dynamic]*[Target Helper Inventory]
+		displayFolder: Target
+		lineageTag: cdb7df5b-5bd2-437f-8562-8b52a7b79f85
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Forecast Accuracy Bowler Dynamic' =
+			
+			IF (
+			    FIRSTDATE ( g_dimdate_analytics_ipd[CalendarDate] ) < TODAY (),
+			    1 - CALCULATE (
+			        DIVIDE (
+			            ABS ( [Demand Supply Registered Dynamic] - [Forecast Supply Dynamic] ),
+			            [Demand Supply Registered Dynamic]
+			        )
+			    ),
+			    BLANK ()
+			)
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: a71fbd36-cf4b-4f1f-b96e-3914246c3f4c
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. ASP Scenario' =
+			
+			VAR _asp = DIVIDE([Fin. Rev Scenario], [Fin. Units Scenario])
+			RETURN
+			IF(ABS(_asp) > 10000, BLANK(), _asp)
+		formatString: #,0.00
+		displayFolder: Fixed Measures
+		lineageTag: cbc9f345-c15e-4375-91e1-a042fe92bda3
+
+	measure 'Fin. Units Budget' =
+			
+			VAR _base =
+			    CALCULATE(SUM(g_bowler_finance_budget_ipd_cy[BudgetUnits]),g_bowler_finance_budget_ipd_cy[RPTCurrency]="USD",g_bowler_finance_budget_ipd_cy[ReAccount]="R_KPI_VOLUME",g_bowler_finance_budget_ipd_cy[Category]="BUD_FINAL")
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		displayFolder: Fixed Measures
+		lineageTag: 4c854dac-08c9-4ace-9416-0677677e5670
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. Units Projection' = ```
+			
+			VAR _base =
+			CALCULATE(SUM(g_bowler_finance_projections_ipd_cy[ProjUnits]),g_bowler_finance_projections_ipd_cy[ReAccount]="R_KPI_VOLUME",g_bowler_finance_projections_ipd_cy[RPTCurrency]="USD")
+			
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+			
+			```
+		displayFolder: Fixed Measures
+		lineageTag: 4801f90a-0a5a-47b0-a6e5-320500554e48
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. Units Scenario' = ```
+			
+			
+			SWITCH (
+			    SELECTEDVALUE ( 'slc_Scenario'[Scenario] ),
+			    "BUD",[Fin. Units Budget],
+			    "PRJ1",CALCULATE([Fin. Units Projection],g_bowler_finance_projections_ipd_cy[Scenario]="PRJ1"),
+			    "PRJ2",CALCULATE([Fin. Units Projection],g_bowler_finance_projections_ipd_cy[Scenario]="PRJ2"),
+			    "PRJ3",CALCULATE([Fin. Units Projection],g_bowler_finance_projections_ipd_cy[Scenario]="PRJ3")
+			)
+			
+			```
+		displayFolder: Fixed Measures
+		lineageTag: 7365a318-5f03-429c-8f43-5f8556740040
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Target Bowler Supply Forecast' =
+			
+			VAR _CurrentDate = FIRSTDATE ( g_dimdate_analytics_ipd[CalendarDate] )
+			VAR _MonthEnd    = EOMONTH ( _CurrentDate, 0 )   // last day of the current month
+			RETURN
+			IF (
+			    _MonthEnd < TODAY (),    // show only if the month has ended
+			    [Demand Supply Registered Dynamic],
+			    BLANK ()
+			)
+		displayFolder: Target
+		lineageTag: 345429c5-6ee6-4014-b4e1-c5ffced2be05
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Forecast Accuracy Lag 2 Dynamic' = 1 - CALCULATE(DIVIDE(ABS([Demand Supply Registered Dynamic]-[Forecast Supply lag2 Dynamic]),[Demand Supply Registered Dynamic]))
+		formatString: 0%;-0%;0%
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: a8d7dca7-37f9-44de-a39b-d2664813875a
+
+	measure 'Forecast Supply lag2 Dynamic' =
+			
+			VAR _TargetDate =
+			    MAX ( g_dimdate_analytics_ipd[CalendarDate] )
+			
+			-- Month that is 2 months before the target date
+			VAR _LagMonthStart =
+			    DATE ( YEAR ( EDATE ( _TargetDate, -2 ) ), MONTH ( EDATE ( _TargetDate, -2 ) ), 1 )
+			VAR _LagMonthEnd =
+			    EOMONTH ( _TargetDate, -2 )
+			
+			-- Latest snapshot *date* within that lag month
+			VAR _LastSnapDateLag2 =
+			    CALCULATE (
+			        MAX ( g_bowler_fcst[SnapshotDate]  ),
+			        REMOVEFILTERS ( g_bowler_fcst[SnapshotDate] ),
+			        DATEVALUE ( g_bowler_fcst[SnapshotDate] ) >= _LagMonthStart,
+			        DATEVALUE ( g_bowler_fcst[SnapshotDate] ) <= _LagMonthEnd
+			    )
+			
+			VAR _Base =
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Metric'[Metric] ),
+			        "Revenue", BLANK (),
+			        "Units",
+			            CALCULATE (
+			                SUM ( g_bowler_fcst[ConsensuFinalForecast] ),
+			                DATEVALUE ( g_bowler_fcst[SnapshotDate] ) = _LastSnapDateLag2
+			            )
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1000", DIVIDE ( _Base, 1000 ),
+			        "M",     DIVIDE ( _Base, 1000000 ),
+			        _Base
+			    )
+		formatString: #,0
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 35f66163-a87c-4d0e-9ce9-23776f6a66b6
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Forecast Accuracy Lag2 Bowler Dynamic' =
+			
+			VAR _CurrentDate = FIRSTDATE ( g_dimdate_analytics_ipd[CalendarDate] )
+			VAR _MonthEnd    = EOMONTH ( _CurrentDate, 0 )   // last day of the current month
+			RETURN
+			IF (
+			    _MonthEnd < TODAY (),    // show only if the month is fully closed
+			    1 - CALCULATE (
+			        DIVIDE (
+			            ABS ( [Demand Supply Registered Dynamic] - [Forecast Supply lag2 Dynamic] ),
+			            [Demand Supply Registered Dynamic]
+			        )
+			    ),
+			    BLANK ()
+			)
+		formatString: 0.00%;-0.00%;0.00%
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 8b0d7026-d8d2-440e-a778-3c47edcfcdfb
+
+	measure 'Fin. Actuals SPLY Dynamic' =
+			
+			VAR _base =
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Metric'[Metric] ),
+			        "Revenue",
+			            CALCULATE (
+			                SUM ( g_bowler_finance_actuals_ipd_cy[ActRevBUDRate] ),
+			                g_bowler_finance_actuals_ipd_cy[RptCurrency] = "USD",
+			                g_bowler_finance_actuals_ipd_cy[GLRptCatg] = "Other Revenue",
+			                SAMEPERIODLASTYEAR ( g_dimdate_analytics_ipd[CalendarDate] )
+			            ),
+			        "Units",
+			            CALCULATE (
+			                SUM ( g_bowler_finance_actuals_ipd_cy[ActUnits] ),
+			                g_bowler_finance_actuals_ipd_cy[RptCurrency] = "USD",
+			                g_bowler_finance_actuals_ipd_cy[GLRptCatg] = "Other Revenue",
+			                SAMEPERIODLASTYEAR ( g_dimdate_analytics_ipd[CalendarDate] )
+			            ),
+			        BLANK()   -- else/default to avoid trailing comma error
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: a326992a-396c-4239-bf2c-da105bc223c8
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Forecast Accuracy Lag2 (Last Closed Month)' =
+			
+			VAR _CtxMaxDate =
+			    MAX ( g_dimdate_analytics_ipd[CalendarDate] )
+			VAR _LatestClosedMonth =
+			    CALCULATE (
+			        MAX ( g_dimdate_analytics_ipd[CalendarDate] ),
+			        FILTER (
+			            ALL ( g_dimdate_analytics_ipd ),
+			            g_dimdate_analytics_ipd[IsClosedMonth] = TRUE ()
+			                && g_dimdate_analytics_ipd[CalendarDate] <= _CtxMaxDate
+			        )
+			    )
+			RETURN
+			IF (
+			    ISBLANK ( _LatestClosedMonth ),
+			    BLANK (),
+			    CALCULATE (
+			        1 - DIVIDE (
+			                ABS ( [Demand Supply Registered Dynamic] - [Forecast Supply lag2 Dynamic] ),
+			                [Demand Supply Registered Dynamic]
+			            ),
+			        KEEPFILTERS (
+			            DATESBETWEEN (
+			                g_dimdate_analytics_ipd[CalendarDate],
+			                STARTOFMONTH ( _LatestClosedMonth ),
+			                ENDOFMONTH ( _LatestClosedMonth )
+			            )
+			        )
+			    )
+			)
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: eb055745-4651-4eb9-9310-a6762b53ae3c
+
+	measure 'Complaints Rules Closed Dynamic' =
+			
+			VAR _base =
+			    CALCULATE (
+			COUNTROWS(VALUES(g_bowler_complaints[UniqueGridId]))
+			,g_bowler_complaints[RecordState]= "Closed"
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		displayFolder: Dynamic Measures - Quality
+		lineageTag: bcc2bdf6-53c9-4c76-871d-08ff1ff52940
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Complaints Rules Dynamic' =
+			
+			VAR _base =
+			    CALCULATE (
+			COUNTROWS(VALUES(g_bowler_complaints[UniqueGridId]))
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		displayFolder: Dynamic Measures - Quality
+		lineageTag: edc4712e-7d83-4008-ac2d-529b6fb04f7a
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Complaints Rules per Million Dynamic' = ([Complaints Rules Dynamic]/[Fin. Units Actuals])*1000000
+		formatString: #,0.00
+		displayFolder: Dynamic Measures - Quality
+		lineageTag: 0e24c893-a998-4e55-a6dc-c6aa9635022b
+
+	measure 'Complaints New Dynamic' =
+			
+			VAR _base =
+			    CALCULATE (
+			        DISTINCTCOUNT ( g_bowler_complaints[PrId] ),
+			        KEEPFILTERS ( NOT CONTAINSSTRING ( g_bowler_complaints[SuspectOrConcomitant], "concomitant" ) ),
+			        KEEPFILTERS ( g_bowler_complaints[AsReportedCode1] <> "Incorrect Entry" ),
+			        KEEPFILTERS ( NOT ISBLANK ( g_bowler_complaints[PrId] ) )
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		formatString: #,0
+		displayFolder: Dynamic Measures - Quality
+		lineageTag: 4cde07ba-a9b3-437c-8353-1089a85aaf0b
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Complaints per Million Dynamic' = ```
+			
+			VAR _num = [Complaints New Dynamic]
+			VAR _den = [Fin. Units Actuals]
+			RETURN 1000000 * DIVIDE ( _num, _den )
+			
+			```
+		formatString: #,0.00
+		displayFolder: Dynamic Measures - Quality
+		lineageTag: 5621b03d-a068-4c56-86ea-60588f8ead0d
+
+	measure 'Complaints Closed Dynamic' =
+			
+			VAR _base =
+			    CALCULATE (
+			COUNTROWS(VALUES(g_bowler_complaints[PrId])),g_bowler_complaints[PrIsClosed]="1"
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		displayFolder: Dynamic Measures - Quality
+		lineageTag: 8651798a-d5bf-4595-80f9-c8dcb32e8562
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Complaints >90 Days Dynamic' = ```
+			
+			VAR _asOf =
+			    EOMONTH ( MAX ( 'g_dimdate_analytics_ipd'[Date] ), 0 )   -- or just MAX(...) if you don't want month-end
+			VAR _base =
+			    CALCULATE (
+			        DISTINCTCOUNT ( g_bowler_complaints[PrId] ),
+			        -- ignore Date table so page/month slicers don't filter the age test
+			        REMOVEFILTERS ( 'g_dimdate_analytics_ipd' ),
+			
+			        -- only open
+			        KEEPFILTERS ( VALUE ( g_bowler_complaints[PrIsClosed] ) = 0 ),
+			
+			        -- valid awareness date
+			        KEEPFILTERS ( NOT ISBLANK ( g_bowler_complaints[AwarenessDate] ) ),
+			
+			        -- age > 90 days
+			        KEEPFILTERS ( DATEDIFF ( g_bowler_complaints[AwarenessDate], _asOf, DAY ) > 90 ),
+			
+			        -- exclude "concomitant" (case-insensitive) and incorrect entries
+			        KEEPFILTERS ( NOT CONTAINSSTRING ( LOWER ( g_bowler_complaints[SuspectOrConcomitant] ), "concomitant" ) ),
+			        KEEPFILTERS ( g_bowler_complaints[AsReportedCode1] <> "Incorrect Entry" )
+			    )
+			RETURN
+			SWITCH (
+			    SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			    "/1",     _base,
+			    "/1000",  DIVIDE ( _base, 1000 ),
+			    "M",      _base / 1000000,
+			    _base
+			)
+			
+			```
+		displayFolder: Dynamic Measures - Quality
+		lineageTag: 871ec03f-7c24-440c-b7dd-c77fe0d6a458
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Complaints >90 Days Bowler Dynamic' =
+			
+			VAR _colEnd   = EOMONTH( MAX ( 'g_dimdate_analytics_ipd'[DateKeySPLY] ), 0 )   -- as-of the month on the column
+			VAR _cutoff   = _colEnd - 90
+			VAR _base =
+			    CALCULATE (
+			        DISTINCTCOUNT ( g_bowler_complaints[PrId] ),
+			        REMOVEFILTERS ( 'g_dimdate_analytics_ipd' ),                    -- include full history, not just the column month
+			        KEEPFILTERS ( g_bowler_complaints[PrIsClosed] = "0" ),
+			        KEEPFILTERS ( NOT ISBLANK ( g_bowler_complaints[AwarenessDate] ) ),
+			        KEEPFILTERS ( g_bowler_complaints[AwarenessDate] <= _cutoff )  -- “older than 90 days” as of that month
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		formatString: 0
+		displayFolder: Dynamic Measures - Quality
+		lineageTag: c7546d0d-3d4e-487d-8427-e8b520d89389
+
+	measure 'Complaints per Million > 90 Dynamic' = ```
+			
+			VAR _num = [Complaints >90 Days Dynamic]
+			VAR _den = [Fin. Units Actuals]
+			VAR _val = 1000000 * DIVIDE(_num, _den)
+			RETURN
+			    IF(
+			        OR(ISBLANK(_val), _val = 0),
+			        0,
+			        _val
+			    )
+			
+			```
+		formatString: #,0.00
+		displayFolder: Dynamic Measures - Quality
+		lineageTag: 1c298725-d393-44cb-916d-5df0078af0ac
+
+	measure 'Complaints per Million Dynamic SPLY' = ```
+			
+			VAR _num = [Complaints Dynamic SPLY]
+			VAR _den = [Fin. Actuals R12M SPLY Dynamic] 
+			RETURN 1000000 * DIVIDE ( _num, _den )
+			
+			```
+		displayFolder: Dynamic Measures - Quality
+		lineageTag: 1f1d9999-39c3-4496-a668-5d7be1ccfb1f
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Complaints per Million YoY Growth %' = ```
+			
+			VAR ThisPeriod = [Complaints per Million Dynamic]
+			VAR LastYear = [Complaints per Million Dynamic SPLY]
+			RETURN
+			IF(
+			    NOT ISBLANK(LastYear),
+			    DIVIDE(ThisPeriod - LastYear, LastYear),
+			    BLANK()
+			)
+			
+			```
+		formatString: 0.00%;-0.00%;0.00%
+		displayFolder: Dynamic Measures - Quality
+		lineageTag: d2708f82-f812-438e-beb6-11fc4b9dd68b
+
+	measure 'Complaints Dynamic SPLY' = ```
+			
+			VAR _base =
+			    CALCULATE (
+			        DISTINCTCOUNT ( g_bowler_complaints[PrId] ),
+			        KEEPFILTERS ( NOT CONTAINSSTRING ( g_bowler_complaints[SuspectOrConcomitant], "concomitant" ) ),
+			        KEEPFILTERS ( g_bowler_complaints[AsReportedCode1] <> "Incorrect Entry" ),
+			        KEEPFILTERS ( NOT ISBLANK ( g_bowler_complaints[PrId] ) ),
+			        SAMEPERIODLASTYEAR ( 'g_dimdate_analytics_ipd'[DateKeySPLY] )
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+			
+			```
+		displayFolder: Dynamic Measures - Quality
+		lineageTag: bcea3f0d-500f-4309-b99a-e6df2d7d17ac
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. Units Actuals SPLY' =
+			
+			VAR _base = CALCULATE(SUM(g_bowler_finance_actuals_ipd_cy[ActUnits]),g_bowler_finance_actuals_ipd_cy[RptCurrency]="USD",g_bowler_finance_actuals_ipd_cy[GLRptCatg]="Other Revenue", SAMEPERIODLASTYEAR(g_dimdate_analytics_ipd[DateKeySPLY]))
+			
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		displayFolder: Fixed Measures
+		lineageTag: 5f0e4f15-2ec5-4cb2-901a-7c961acbdef4
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Text Card Month' = "vs. last month"
+		displayFolder: Titles
+		lineageTag: 669b0600-3f2c-4e6b-bbbc-897fd1492168
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Text Card Quarter' = "vs. last quarter"
+		displayFolder: Titles
+		lineageTag: cc297deb-cf22-492c-a4b2-a9a912875d9c
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. Actuals LY Dynamic' =
+			
+			VAR _base =
+			SWITCH(
+			    SELECTEDVALUE('slc_Metric'[Metric]),
+			    "Revenue", CALCULATE(SUM(g_bowler_finance_actuals_ipd_cy[ActRevBUDRate]),g_bowler_finance_actuals_ipd_cy[RptCurrency]="USD",g_bowler_finance_actuals_ipd_cy[GLRptCatg]="Other Revenue",SAMEPERIODLASTYEAR(g_dimdate_analytics_ipd[DateKeySPLY])),
+			    "Units", CALCULATE(SUM(g_bowler_finance_actuals_ipd_cy[ActUnits]),g_bowler_finance_actuals_ipd_cy[RptCurrency]="USD",g_bowler_finance_actuals_ipd_cy[GLRptCatg]="Other Revenue",SAMEPERIODLASTYEAR(g_dimdate_analytics_ipd[DateKeySPLY]))
+			)
+			
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		formatString: #,0
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 24f95ef0-a236-46a2-ad03-7048431172cf
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Fin. Actuals @LY fx Dynamic' =
+			
+			VAR _base =
+			SWITCH(
+			    SELECTEDVALUE('slc_Metric'[Metric]),
+			    "Revenue", CALCULATE(SUM(g_bowler_finance_actuals_ipd_cy[ActRevPYRate]),g_bowler_finance_actuals_ipd_cy[RptCurrency]="USD",g_bowler_finance_actuals_ipd_cy[GLRptCatg]="Other Revenue"),
+			    "Units", CALCULATE(SUM(g_bowler_finance_actuals_ipd_cy[ActUnits]),g_bowler_finance_actuals_ipd_cy[RptCurrency]="USD",g_bowler_finance_actuals_ipd_cy[GLRptCatg]="Other Revenue")
+			)
+			
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 51858871-6195-4fcc-944f-054b7e758402
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Text Card Bud' = "vs. Budget"
+		displayFolder: Titles
+		lineageTag: 7b3fc802-bbf1-4251-a380-948754b3e1d7
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Text Card LY' = "vs. LY"
+		displayFolder: Titles
+		lineageTag: adc3deab-762f-44d2-afd3-c4db86d7c5f8
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Text Card Proj' = "vs. PRJ"
+		displayFolder: Titles
+		lineageTag: 21a06ecd-0ab2-4655-bb83-61b1e8421e74
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure Today = FORMAT(TODAY(),"dd-mm-yyyy")
+		displayFolder: Helpers
+		lineageTag: 60decdfc-3a7c-40a9-81b1-35f1d891a20d
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. Actual Units vs LY' = ```
+			
+			VAR _base =
+			    [Fin. Units Actuals] - [Fin. Units Actuals SPLY]
+			RETURN
+			    SWITCH(
+			        SELECTEDVALUE('slc_Scale'[Scale]),
+			        "/1", _base,
+			        "/1000", DIVIDE(_base, 1000),
+			        "M", DIVIDE(_base, 1000000),
+			        _base  // Default if nothing selected
+			    )
+			
+			```
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 1d1c6244-98c5-4457-b97b-227564899733
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'fmt Perf prj Font Color' =
+			
+			VAR _p =
+			    [Fin. Gap Actual to PRJ]          // <-- replace with your measure
+			RETURN
+			SWITCH (
+			    TRUE(),
+			    ISBLANK(_p), BLANK(),
+			    _p < 0, "#B23E3E",     // red text
+			    _p > 0, "#3D5C28",     // green text
+			    BLANK()                // exactly 100%: no override
+			)
+		displayFolder: Formatting
+		lineageTag: a784efbd-4c87-4328-ab00-b9115618b3ca
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'fmt Perf prj Background Color' =
+			
+			VAR _p =
+			    [Fin. Gap Actual to PRJ]          // <-- replace with your measure
+			RETURN
+			SWITCH (
+			    TRUE(),
+			    ISBLANK(_p), BLANK(),
+			    _p < 0, "#F0A0A0",     // red back
+			    _p > 0, "#BEDC96",     // green back
+			    BLANK()                // exactly 100%: no override
+			)
+		displayFolder: Formatting
+		lineageTag: 66194e81-831b-4ace-9041-f0b9595ef91c
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'fmt Perf prj% icons' = ```
+			
+			VAR _p =
+			    [Fin. % Actuals vs PRJ]          // <-- replace with your measure
+			RETURN
+			SWITCH (
+			    TRUE(),
+			    ISBLANK(_p), BLANK(),
+			    _p < 1, UNICHAR(9660),   // ▼ down
+			    _p > 1, UNICHAR(9650),   // ▲ up
+			    BLANK()                  // exactly 100%: no icon
+			)
+			
+			```
+		displayFolder: Formatting
+		lineageTag: e50a45ec-156b-4342-a450-c64e88b7f064
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'fmt Perf prj% Font Color' =
+			
+			VAR _p =
+			    [Fin. % Actuals vs PRJ]          // <-- replace with your measure
+			RETURN
+			SWITCH (
+			    TRUE(),
+			    ISBLANK(_p), BLANK(),
+			    _p < 0, "#B23E3E",     // red text
+			    _p > 0, "#3D5C28",     // green text
+			    BLANK()                // exactly 100%: no override
+			)
+		displayFolder: Formatting
+		lineageTag: 8c545790-4ab8-4c91-8f18-19aa1fabdd56
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'fmt Perf bud Background Color' =
+			
+			VAR _p =
+			    [Fin. Gap Actual to BUD]          // <-- replace with your measure
+			RETURN
+			SWITCH (
+			    TRUE(),
+			    ISBLANK(_p), BLANK(),
+			    _p < 0, "#F0A0A0",     // red back
+			    _p > 0, "#BEDC96",     // green back
+			    BLANK()                // exactly 100%: no override
+			)
+		displayFolder: Formatting
+		lineageTag: 9f846992-c281-4866-a921-7b13380feb8f
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'fmt Perf bud Font Color' =
+			
+			VAR _p =
+			    [Fin. Gap Actual to BUD]          // <-- replace with your measure
+			RETURN
+			SWITCH (
+			    TRUE(),
+			    ISBLANK(_p), BLANK(),
+			    _p < 0, "#B23E3E",     // red text
+			    _p > 0, "#3D5C28",     // green text
+			    BLANK()                // exactly 100%: no override
+			)
+		displayFolder: Formatting
+		lineageTag: 47136129-007e-402a-addc-c7b55418ea56
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'fmt Perf bud% Font Color' =
+			
+			VAR _p =
+			    [Fin. % Actuals vs Budget]          // <-- replace with your measure
+			RETURN
+			SWITCH (
+			    TRUE(),
+			    ISBLANK(_p), BLANK(),
+			    _p < 0, "#B23E3E",     // red text
+			    _p > 0, "#3D5C28",     // green text
+			    BLANK()                // exactly 100%: no override
+			)
+		displayFolder: Formatting
+		lineageTag: 08bfb5ad-6564-4c3e-beff-10ff25f992c3
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'fmt Perf LY% Font Color' =
+			
+			VAR _p =
+			    [Fin. % Actual vs LY]          // <-- replace with your measure
+			RETURN
+			SWITCH (
+			    TRUE(),
+			    ISBLANK(_p), BLANK(),
+			    _p < 0, "#B23E3E",     // red text
+			    _p > 0, "#3D5C28",     // green text
+			    BLANK()                // exactly 100%: no override
+			)
+		displayFolder: Formatting
+		lineageTag: be5bff2c-f613-4506-b3bb-344eae7b8d5b
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'fmt Perf LY Background Color' =
+			
+			VAR _p =
+			    [Fin. % Actual vs LY]          // <-- replace with your measure
+			RETURN
+			SWITCH (
+			    TRUE(),
+			    ISBLANK(_p), BLANK(),
+			    _p < 0, "#F0A0A0",     // red back
+			    _p > 0, "#BEDC96",     // green back
+			    BLANK()                // exactly 100%: no override
+			)
+		displayFolder: Formatting
+		lineageTag: 3fe5aab5-0c92-47db-af4d-de89b5edd31f
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Working Days % Elapsed vs LY' =
+			
+			DIVIDE ( [Working Days (Selected, Elapsed)], [Working Days (Selected, Elapsed) SPLY] )-1
+		formatString: 0.00%;-0.00%;0.00%
+		displayFolder: Helpers
+		lineageTag: f9138fda-457f-4038-83ea-7a5d5864643e
+
+	measure 'Working Days (Selected, Elapsed) SPLY' = ```
+			
+			CALCULATE(
+			    VAR _cutoff_sply =
+			        MIN(
+			            EDATE(TODAY(), -12),                           -- "today" in last year's timeline
+			            MAX(g_dimdate_analytics_ipd[Date])             -- max date within the SPLY period
+			        )
+			    RETURN
+			        COUNTROWS(
+			            FILTER(
+			                VALUES(g_dimdate_analytics_ipd[Date]),
+			                g_dimdate_analytics_ipd[Date] <= _cutoff_sply
+			                    && WEEKDAY(g_dimdate_analytics_ipd[Date], 2) <= 5
+			                    -- && g_dimdate_analytics_ipd[IsHoliday] = FALSE()   -- optional holiday exclusion
+			            )
+			        ),
+			    SAMEPERIODLASTYEAR(g_dimdate_analytics_ipd[DateKeySPLY])       -- shift selection to SPLY
+			)
+			
+			```
+		displayFolder: Helpers
+		lineageTag: 7450ad37-83db-4ce1-a5c2-7a0bda8b93e6
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Working Days (Selected, Total) SPLY' = ```
+			
+			CALCULATE(
+			    COUNTROWS(
+			        FILTER(
+			            VALUES(g_dimdate_analytics_ipd[Date]),
+			            WEEKDAY(g_dimdate_analytics_ipd[Date], 2) <= 5
+			            -- && g_dimdate_analytics_ipd[IsHoliday] = FALSE()   -- optional
+			        )
+			    ),
+			    SAMEPERIODLASTYEAR(g_dimdate_analytics_ipd[DateKeySPLY])
+			)
+			
+			```
+		displayFolder: Helpers
+		lineageTag: 03375c41-a151-4c64-947b-d97adeaa7dbb
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Growth Day Elapsed'
+		displayFolder: Helpers
+		lineageTag: 12a7f58f-5c52-409c-8a7f-abdbfb276bb5
+
+	measure 'fmt Perf days Background Color' = ```
+			
+			VAR _p =
+			    [Working Days % Elapsed vs LY]          // your base measure
+			RETURN
+			SWITCH(
+			    TRUE(),
+			    ISBLANK(_p), BLANK(),
+			    _p < 0, "#F0A0A0",      // red
+			    _p > 0, "#BEDC96",      // green
+			    _p = 0, "#FFFFFF"       // white when exactly 0
+			)
+			
+			```
+		displayFolder: Formatting
+		lineageTag: 0473ecee-5706-4bd2-86eb-ead945ba06c4
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. Actuals Previous Month Dynamic' =
+			
+			VAR _base =
+			CALCULATE(
+			SWITCH(
+			    SELECTEDVALUE('slc_Metric'[Metric]),
+			    "Revenue", CALCULATE(SUM(g_bowler_finance_actuals_ipd_cy[ActRevBUDRate]),g_bowler_finance_actuals_ipd_cy[RptCurrency]="USD",g_bowler_finance_actuals_ipd_cy[GLRptCatg]="Other Revenue"),
+			    "Units", CALCULATE(SUM(g_bowler_finance_actuals_ipd_cy[ActUnits]),g_bowler_finance_actuals_ipd_cy[RptCurrency]="USD",g_bowler_finance_actuals_ipd_cy[GLRptCatg]="Other Revenue")
+			),DATEADD(g_dimdate_analytics_ipd[DateKeySPLY], -1, MONTH))
+			
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: fe0fb7a7-80b4-4f03-a045-51abfc1e043c
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. % Actual vs LM' = DIVIDE([Fin. Actuals Dynamic], [Fin. Actuals Previous Month Dynamic], 0)-1
+		formatString: 0.00%;-0.00%;0.00%
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: ada93f7a-82d2-41e6-8047-79ad40a615d2
+
+	measure 'fmt Perf LM Background Color' =
+			
+			VAR _p =
+			    [Fin. % Actual vs LM]          // <-- replace with your measure
+			RETURN
+			SWITCH (
+			    TRUE(),
+			    ISBLANK(_p), BLANK(),
+			    _p < 0, "#F0A0A0",     // red back
+			    _p > 0, "#BEDC96",     // green back
+			    BLANK()                // exactly 100%: no override
+			)
+		displayFolder: Formatting
+		lineageTag: b13ff0f2-149e-44b4-b289-eef12d8f8a10
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Complaints New' =
+			
+			VAR _base =
+			    CALCULATE (
+			        DISTINCTCOUNT ( g_bowler_complaints[PrId] ),
+			        KEEPFILTERS ( NOT CONTAINSSTRING ( g_bowler_complaints[SuspectOrConcomitant], "concomitant" ) ),
+			        KEEPFILTERS ( g_bowler_complaints[AsReportedCode1] <> "Incorrect Entry" ),
+			        KEEPFILTERS ( NOT ISBLANK ( g_bowler_complaints[PrId] ) )
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		displayFolder: Dynamic Measures - Quality
+		lineageTag: fde6c23c-cc62-4cb8-a8ab-e086b695d4d0
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. Growth units' = DIVIDE([Fin. Units Actuals],[Fin. Units Actuals SPLY],0)-1
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 943d3d81-9525-436e-aca8-9a4ec0ccface
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. Rev Actuals @PYrate' =
+			
+			VAR _base = CALCULATE(SUM(g_bowler_finance_actuals_ipd_cy[ActRevPYRate]),g_bowler_finance_actuals_ipd_cy[RptCurrency]="USD",g_bowler_finance_actuals_ipd_cy[GLRptCatg]="Other Revenue")
+			
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 47744cc7-422d-4344-961d-8ad020705b0e
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. Rev Actuals SPLY' =
+			
+			VAR _base = CALCULATE(SUM(g_bowler_finance_actuals_ipd_cy[ActRevBUDRate]),g_bowler_finance_actuals_ipd_cy[RptCurrency]="USD",g_bowler_finance_actuals_ipd_cy[GLRptCatg]="Other Revenue",SAMEPERIODLASTYEAR(g_dimdate_analytics_ipd[DateKeySPLY]))
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: d89122cd-c4fe-493c-b0f6-3db5c828e68a
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. Growth Rev' = DIVIDE([Fin. Rev Actuals @PYrate],[Fin. Rev Actuals SPLY],0)-1
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 0cea6e0e-d2f6-4137-9a96-957f14dd4b08
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. Growth Units Bowler' = ```
+			
+			VAR _currDate =
+			    MAX ( g_dimdate_analytics_ipd[Date] )   // use your date column
+			VAR _curr =
+			    [Fin. Units Actuals]
+			VAR _prev =
+			    [Fin. Units Actuals SPLY]
+			RETURN
+			IF (
+			    _currDate > TODAY(),       // if date in context is in the future
+			    BLANK(),
+			    DIVIDE ( _curr, _prev, 0 ) - 1
+			)
+			
+			```
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 78a5f150-1f09-43f7-b25a-7a66d58db186
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Safety Stock Dynamic' = ```
+			
+			VAR _TargetDate =
+			    MAX ( g_dimdate_analytics_ipd[CalendarDate] )    -- latest day in current selection
+			VAR _LastSnapDate =
+			    CALCULATE (
+			        MAX ( g_bowler_inventory[SnapshotDate] ),     -- latest snapshot ≤ target date
+			        REMOVEFILTERS ( g_bowler_inventory[SnapshotDate] ),
+			        g_bowler_inventory[SnapshotDate] <= _TargetDate
+			    )
+			VAR _Base =
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Metric'[Metric] ),
+			        "Revenue",
+			            CALCULATE (
+			                SUM ( g_bowler_inventory[SafetyStockDays] ),
+			                g_bowler_inventory[SnapshotDate] = _LastSnapDate
+			            ),
+			        "Units",
+			            CALCULATE (
+			                SUM ( g_bowler_inventory[SafetyStockDays] ),
+			                g_bowler_inventory[SnapshotDate] = _LastSnapDate
+			            )
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1000", DIVIDE ( _Base, 1000 ),
+			        "M",     DIVIDE ( _Base, 1000000 ),
+			        _Base
+			    )
+			
+			```
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 5deb784d-1de8-4048-b39a-ff7dd730a681
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Inv vs last month' = 0.99
+		formatString: 0%;-0%;0%
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: cf4ff82c-1acb-4520-999b-5dff40d73e7b
+
+	measure 'Order In Period (Ext) test 1' = ```
+			
+			VAR _minSel = MINX(ALLSELECTED('g_dimdate_analytics_ipd'[CalendarDate]), 'g_dimdate_analytics_ipd'[CalendarDate])
+			VAR _maxSel = MAXX(ALLSELECTED('g_dimdate_analytics_ipd'[CalendarDate]), 'g_dimdate_analytics_ipd'[CalendarDate])
+			RETURN
+			CALCULATE (
+			    [Order In Dynamic (Ext) test 1],
+			    -- kill active CreateDate filter from DimDate
+			    REMOVEFILTERS ( g_bowler_orders[CreateDate] ),
+			    -- use RequestedDeliveryDate for the current DimDate month
+			    USERELATIONSHIP ( g_bowler_orders[_nkeyRequestedDeliveryDate], 'g_dimdate_analytics_ipd'[skeyDay] ),
+			    -- window constraints
+			    g_bowler_orders[CreateDate] <= _maxSel,
+			    g_bowler_orders[RequestedDeliveryDate] >= _minSel,
+			    g_bowler_orders[RequestedDeliveryDate] <= _maxSel
+			)
+			
+			```
+		displayFolder: Testing
+		lineageTag: 0964e552-1ed6-4507-aa2a-054b4baead74
+
+	measure 'BO % of Actuals Dynamic' = [BO Dist. Dynamic]/[Fin. Actuals Dynamic]
+		formatString: 0.0%;-0.0%;0.0%
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 19556b81-477f-43f6-8b7c-c29482bc1aee
+
+	measure 'Fin. GP % Actual' =
+			
+			DIVIDE( [Fin. GP Actual], [Fin. Rev Actuals], 0 )
+		formatString: 0.00%;-0.00%;0.00%
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 9db652b0-1d6e-4a10-a9d0-ad82cfe338e7
+
+	measure 'Fin. GP % vs PRJ (bps)' = ```
+			
+			VAR _actual = DIVIDE( [Fin. GP Actual], [Fin. Rev Actuals], 0 )
+			VAR _prj    = DIVIDE( [Fin. GP Scenario], [Fin. Rev Scenario], 0 )
+			RETURN
+			( _actual - _prj ) * 10000
+			
+			```
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 6b6932df-cd8f-4858-b337-a7d2b4eb3728
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. GP % vs BUD (bps)' = ```
+			
+			VAR _actual = DIVIDE( [Fin. GP Actual], [Fin. Rev Actuals], 0 )
+			VAR _prj    = DIVIDE( [Fin. GP Budget], [Fin. Rev Budget], 0 )
+			RETURN
+			( _actual - _prj ) * 10000
+			
+			```
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: c4149b91-f299-448a-adbe-933517da3291
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Supply SIOP YTG' = ```
+			
+			VAR _selFY        = MAX ( 'g_dimdate_analytics_ipd'[FiscalYear] )
+			VAR _lastSelDate  = EOMONTH ( MAX ( 'g_dimdate_analytics_ipd'[CalendarDate] ), 0 )
+			VAR _fyEndDate    =
+			    CALCULATE (
+			        MAX ( 'g_dimdate_analytics_ipd'[CalendarDate] ),
+			        ALL ( 'g_dimdate_analytics_ipd' ),
+			        'g_dimdate_analytics_ipd'[FiscalYear] = _selFY
+			    )
+			RETURN
+			CALCULATE (
+			    DIVIDE (
+			        [Forecast Supply Dynamic] - [Fin. Projection Scenario Dynamic],
+			        [Fin. Projection Scenario Dynamic],
+			        0
+			    ),
+			    FILTER (
+			        ALL ( 'g_dimdate_analytics_ipd' ),
+			        'g_dimdate_analytics_ipd'[FiscalYear] = _selFY
+			            && 'g_dimdate_analytics_ipd'[CalendarDate] > _lastSelDate
+			            && 'g_dimdate_analytics_ipd'[CalendarDate] <= _fyEndDate
+			    )
+			)
+			
+			```
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 15947fb7-dfc6-485f-a47a-962da578b806
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'BO Supply Revenue' = ```
+			
+			VAR _TargetDate =
+			    MAX ( g_dimdate_analytics_ipd[DateKeySPLY] )
+			VAR _LastSnapDate =
+			    CALCULATE (
+			        MAX ( g_bowler_backorder[SnapshotDate] ),
+			        REMOVEFILTERS ( g_bowler_backorder[SnapshotDate] ),
+			        g_bowler_backorder[SnapshotDate] <= _TargetDate
+			    )
+			VAR _Base =
+			            CALCULATE (
+			                SUM ( g_bowler_backorder[SupplyRelatedBOValue2] ),
+			                KEEPFILTERS ( g_bowler_backorder[SnapshotDate] = _LastSnapDate )
+			            )
+			
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1000", DIVIDE ( _Base, 1000 ),
+			        "M",     DIVIDE ( _Base, 1000000 ),
+			        _Base
+			    )
+			
+			```
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 15eb3b27-6bce-49cd-b54d-22c39d9ffb4f
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'SIOP % Variance' = ```
+			
+			[SIOP Absolute Variance]/[Fin. Projection Scenario Dynamic]
+			
+			```
+		formatString: 0.00%;-0.00%;0.00%
+		displayFolder: Performance Measures
+		lineageTag: 807e36a5-bf61-4683-a78e-8b10a1236bf2
+
+	measure 'SIOP Absolute Variance' =
+			
+			VAR _Today   = TODAY()
+			VAR _FYStart = DATE( YEAR(_Today) - IF( MONTH(_Today) < 10, 1, 0 ), 10, 1 )   // Oct 1 of current FY
+			VAR _FYEnd   = EOMONTH( _FYStart, 11 )                                        // Sep 30 of current FY
+			RETURN
+			CALCULATE([Forecast Supply Dynamic test]-[Fin. Projection Scenario Dynamic],
+			    REMOVEFILTERS( 'g_dimdate_analytics_ipd'[CalendarDate] ),
+			    KEEPFILTERS(
+			        'g_dimdate_analytics_ipd'[Date] >= _FYStart &&
+			        'g_dimdate_analytics_ipd'[Date] <= _FYEnd
+			    ))
+		formatString: #,0
+		displayFolder: Performance Measures
+		lineageTag: aeea9d17-c5d1-4056-8c29-62e8862871db
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Forecast Accuracy Lag2 Target gap' = ([Forecast Accuracy Lag2 (Last Closed Month)2]-0.85)
+		formatString: 0.0%;-0.0%;0.0%
+		displayFolder: Performance Measures
+		lineageTag: ea3d9dd5-2e99-4e6c-a2a0-ab4fcb69cc48
+
+	measure 'Fin. Rev % Actuals vs PRJ' =
+			
+			DIVIDE([Fin. Rev Actuals], [Fin. Rev Scenario], 0)-1
+		formatString: 0.00%;-0.00%;0.00%
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: e3063b1d-a749-4f08-8942-639a01fd9bcb
+
+	measure 'Fin. Gap Actual to BUD Waterfall' = -([Fin. Actuals Dynamic]-[Fin. Budget Dynamic])
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 9c5a5562-1ea3-4eb8-9efe-bad0bcb668cd
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Weekday Period' = COUNT(g_dimdate_analytics_ipd[IsWeekday]=TRUE)
+		displayFolder: Testing
+		lineageTag: abcbf34c-0dcf-466f-8051-9c43476896fb
+
+	measure 'Working Day 100%' = 1
+		formatString: 0.00%;-0.00%;0.00%
+		displayFolder: Helpers
+		lineageTag: a86b922d-bc51-4002-a4c2-5a1aa2893901
+
+	measure 'Complaints New Fixed' =
+			
+			VAR _base =
+			    CALCULATE (
+			        DISTINCTCOUNT ( g_bowler_complaints[PrId] ),
+			        KEEPFILTERS ( NOT CONTAINSSTRING ( g_bowler_complaints[SuspectOrConcomitant], "concomitant" ) ),
+			        KEEPFILTERS ( g_bowler_complaints[AsReportedCode1] <> "Incorrect Entry" ),
+			        KEEPFILTERS ( NOT ISBLANK ( g_bowler_complaints[PrId] ) )
+			    )
+			RETURN
+			    _base
+		displayFolder: Dynamic Measures - Quality
+		lineageTag: 89343584-3743-45ee-bfe5-df72c108aed1
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'BO Dist. LM Dynamic' = ```
+			
+			VAR _TargetDate =
+			    MAX ( g_dimdate_analytics_ipd[CalendarDate] )
+			VAR _LastSnapDate =
+			    CALCULATE (
+			        MAX ( g_bowler_backorder[SnapshotDate] ),
+			        REMOVEFILTERS ( g_bowler_backorder[SnapshotDate] ),
+			        DATEVALUE ( g_bowler_backorder[SnapshotDate] ) <= _TargetDate,
+			        DATEADD(g_dimdate_analytics_ipd[CalendarDate],-1,MONTH)
+			    )
+			VAR _Base =
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Metric'[Metric] ),
+			        "Revenue",
+			            CALCULATE (
+			                SUM ( g_bowler_backorder[DistroBOValue] ),
+			                g_bowler_backorder[SnapshotDate] = _LastSnapDate
+			            ),
+			        "Units",
+			            CALCULATE (
+			                SUM ( g_bowler_backorder[DistroBOQty] ),
+			                g_bowler_backorder[SnapshotDate] = _LastSnapDate
+			            )
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1000", DIVIDE ( _Base, 1000 ),
+			        "M",     DIVIDE ( _Base, 1000000 ),
+			        _Base
+			    )
+			
+			```
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 861af05e-e0b0-4ac2-baee-bb0b32670f24
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'BO Dist. LW Dynamic' =
+			
+			VAR _TargetDate =
+			    MAX ( g_dimdate_analytics_ipd[CalendarDate] )
+			VAR _LastSnapDate =
+			    CALCULATE (
+			        MAX ( g_bowler_backorder[SnapshotDate] ),
+			        REMOVEFILTERS ( g_bowler_backorder[SnapshotDate] ),
+			        DATEVALUE ( g_bowler_backorder[SnapshotDate] ) <= _TargetDate,
+			        DATEADD(g_dimdate_analytics_ipd[CalendarDate],-7,DAY)
+			    )
+			VAR _Base =
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Metric'[Metric] ),
+			        "Revenue",
+			            CALCULATE (
+			                SUM ( g_bowler_backorder[DistroBOValue] ),
+			                g_bowler_backorder[SnapshotDate] = _LastSnapDate
+			            ),
+			        "Units",
+			            CALCULATE (
+			                SUM ( g_bowler_backorder[DistroBOQty] ),
+			                g_bowler_backorder[SnapshotDate] = _LastSnapDate
+			            )
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1000", DIVIDE ( _Base, 1000 ),
+			        "M",     DIVIDE ( _Base, 1000000 ),
+			        _Base
+			    )
+		formatString: ▲ 0.0%;▼ 0.0%;0.0%
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 1fc7321e-5243-4e30-9dfb-8551b8d72793
+
+		annotation PBI_FormatHint = {"isCustom":true}
+
+	measure 'BO Dist vs. LW Dynamic' = DIVIDE([BO Dist. Dynamic], [BO Dist. LW Dynamic], 0)-1
+		formatString: ▲ 0.0%;▼ 0.0%;0.0%
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 202bf2f4-7507-4e68-9218-1cd70d3ad164
+
+		annotation PBI_FormatHint = {"isCustom":true}
+
+	measure 'BO Dist vs. LM Dynamic' = DIVIDE([BO Dist. Dynamic], [BO Dist. LM Dynamic], 0)-1
+		formatString: 0%;-0%;0%
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 0bfdcb6c-72fd-4e84-aea0-5bc2503417da
+
+	measure 'Fin % Actual Bar' = 1+[Fin. % Actuals vs PRJ]
+		formatString: 0.00%;-0.00%;0.00%
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 288b169d-6bef-4371-b7e9-91e6af8c1743
+
+	measure 'Sust. Commit Date Flag' = ```
+			
+			IF(
+			    ISBLANK(Projects[CommitFinish]),
+			    3,
+			    IF(
+			        Projects[CommitFinish] > Projects[FinishDate],
+			        1,
+			        IF(
+			            Projects[CommitFinish] < Projects[FinishDate],
+			            2
+			        )
+			    )
+			)
+			
+			```
+		displayFolder: Dynamic Measures - Sust
+		lineageTag: a4351d6d-df14-4c91-8226-1ddfb09e0b74
+
+		changedProperty = Name
+
+	measure 'Sust. Commit Status Flag Format' = MAX(Projects[Sust. Commit Date Flag1])
+		displayFolder: Dynamic Measures - Sust
+		lineageTag: 07bef52b-fb53-4b2f-a95d-e8eae83cb901
+
+		changedProperty = Name
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Sust. Count of Project' = DISTINCTCOUNTNOBLANK(Projects[ProjectName])
+		displayFolder: Dynamic Measures - Sust
+		lineageTag: 495382e3-ed36-46be-86fb-a0925ad5a4be
+
+		changedProperty = Name
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Sust. Count of Project Active' = ```
+			
+			     CALCULATE(DISTINCTCOUNTNOBLANK(Projects[ProjectName]), Projects[ProjectStatus] = "Active")
+			
+			```
+		displayFolder: Dynamic Measures - Sust
+		lineageTag: 89e3a277-cf71-499b-8490-7744809e75a0
+
+		changedProperty = Name
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Sust. Count of Project Active & Resource Bound' =
+			
+			CALCULATE(
+			    DISTINCTCOUNTNOBLANK(Projects[ProjectName]),
+			    FILTER(
+			        Projects,
+			        Projects[ResourceHealth] = "Grey" ||
+			        Projects[ResourceHealth] = "Red"
+			    ),
+			    FILTER(Projects,
+			    Projects[ProjectStatus] = "Active"
+			)
+			)
+		displayFolder: Dynamic Measures - Sust
+		lineageTag: c2e2a99a-16fe-42ee-89de-1a4454bec569
+
+		changedProperty = Name
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Sust. Count of Project Late to Impact Date' = ```
+			
+			CALCULATE(
+			    DISTINCTCOUNTNOBLANK(Projects[ProjectName]),
+			    FILTER(
+			        Projects,
+			        Projects[ProjectFinishDate] > Projects[FinancialImpactDate]
+			    ),
+			    FILTER(Projects,Projects[ProjectStatus] = "Active")
+			)
+			
+			```
+		displayFolder: Dynamic Measures - Sust
+		lineageTag: 4720e63e-8942-4a14-8f20-d3b931dd00dd
+
+		changedProperty = Name
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Sust. Count of Project No Finish Date' = ```
+			
+			CALCULATE(
+			    DISTINCTCOUNTNOBLANK(Projects[ProjectName]),
+			    FILTER(
+			        Projects,
+			        ISBLANK(Projects[FinancialImpactDate])
+			    ),
+			    FILTER(Projects,Projects[ProjectStatus] = "Active")
+			)
+			
+			```
+		displayFolder: Dynamic Measures - Sust
+		lineageTag: cb04e6f4-67c5-459a-b8e1-e60b56347bfa
+
+		changedProperty = Name
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Sust. Sum of Impact' = ```
+			VAR _base = SUM(Projects[RevenueImpact])
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+			
+			
+			```
+		displayFolder: Dynamic Measures - Sust
+		lineageTag: 2e0614f9-b019-41ba-a97d-e777c8dc46bc
+
+		changedProperty = Name
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Sust. Project % Completed' = SUM(Projects[ProjectPercentCompleted])
+		displayFolder: Dynamic Measures - Sust
+		lineageTag: bb56071c-df19-431b-b853-c6c934f0e738
+
+		changedProperty = Name
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'CPM diff to target' = (([Complaints per Million Dynamic]-7)/7)
+		formatString: 0.0%;-0.0%;0.0%
+		displayFolder: Performance Measures
+		lineageTag: 63cffe54-059d-410e-91f8-f5469407c0a9
+
+	measure 'Fin. Actuals R12M Dynamic' = ```
+			
+			VAR _endDate =
+			    MAX(g_dimdate_analytics_ipd[CalendarDate])
+			RETURN
+			CALCULATE(
+			    [Fin. Actuals Dynamic],
+			    DATESINPERIOD(
+			        g_dimdate_analytics_ipd[CalendarDate],
+			        _endDate,
+			        -12,
+			        MONTH
+			    ),
+			    REMOVEFILTERS(g_dimdate_analytics_ipd)
+			)
+			
+			```
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 0657a5f3-5053-4e83-a7f8-43be827a67fa
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. Full Year Target % vs LY Dynamic' = 1
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: c4ce1e02-6af4-4520-9cd3-a338f12eb9d2
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. Full Year Target Dynamic' = 1
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 83ad62b1-7f0f-4550-a61b-4aa727920aa1
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. Full Year Target vs LY Dynamic' = 1
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 5d8d0968-358d-41f7-9ba9-8366f68d7625
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Gap Fcst to Budget' = [Fin. Projection Scenario Dynamic]-[Forecast Supply Dynamic]
+		displayFolder: Performance Measures
+		lineageTag: 23c46681-0a18-449a-8004-8872b5fc271e
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Gap Order to Fcst.' = [Forecast Supply Dynamic]-[Order In Period (Ext)]
+		displayFolder: Performance Measures
+		lineageTag: af241bfa-ae27-4c67-824d-767c15afc163
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Sust. Count of Project Active Bowler' = ```
+			
+			VAR _colEnd   = EOMONTH( MAX ( 'g_dimdate_analytics_ipd'[DateKeySPLY] ), 0 )   -- as-of the month on the column
+			VAR _cutoff   = _colEnd
+			VAR _base = CALCULATE(
+			    DISTINCTCOUNTNOBLANK(Projects[ProjectName]),
+			    KEEPFILTERS ( Projects[ProjectStatus] = "Active" ),
+			    KEEPFILTERS ( g_bowler_complaints[AwarenessDate] <= _cutoff )  
+			)
+			RETURN _base
+			```
+		displayFolder: Dynamic Measures - Sust
+		lineageTag: 9290bf12-dcaa-4955-9d59-efe13ed35c5d
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Sust. Count of Project Underresourced Bowler' = ```
+			
+			VAR _IsClosedMonth =
+			    SELECTEDVALUE ( g_dimdate_analytics_ipd[IsLastClosedMonth] )
+			RETURN
+			IF (
+			    _IsClosedMonth = TRUE(),
+			    [Sust. Count of Project Active & Resource Bound],
+			    BLANK()
+			)
+			
+			```
+		displayFolder: Dynamic Measures - Sust
+		lineageTag: 00343b4a-440f-4a73-a695-540f56dd2dd6
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Orders to Fcst. Progress' = [Order In Period (Ext)]/[Forecast Supply Dynamic]
+		formatString: 0.00%;-0.00%;0.00%
+		displayFolder: Performance Measures
+		lineageTag: 810b666d-f7c5-41ad-b584-ef6ccb6c366f
+
+	measure 'Orders to Fin. Progress' = [Order In Period (Ext)]/[Fin. Projection Scenario Dynamic]
+		formatString: 0.00%;-0.00%;0.00%
+		displayFolder: Performance Measures
+		lineageTag: f354c77b-c65a-4afa-9bf8-cd5ce9da90c7
+
+	measure 'Complaints per Million R12 Dynamic' = ```
+			
+			VAR _num = [Complaints New Dynamic]
+			VAR _den = [Fin. Actuals R12M avg month Dynamic]
+			RETURN 1000000 * DIVIDE ( _num, _den )
+			
+			```
+		displayFolder: Dynamic Measures - Quality
+		lineageTag: 105a802e-1c3e-48b6-b5c9-7ecc603fd5fb
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Selected Period (Min–Max FY)' = ```
+			
+			VAR MinD =
+			    MIN ( g_dimdate_analytics_ipd[CalendarDate] )
+			VAR MaxD =
+			    MAX ( g_dimdate_analytics_ipd[CalendarDate] )
+			VAR MinFYNum =
+			    YEAR ( MinD ) + IF ( MONTH ( MinD ) >= 10, 1, 0 )        -- Oct–Sep fiscal year
+			VAR MaxFYNum =
+			    YEAR ( MaxD ) + IF ( MONTH ( MaxD ) >= 10, 1, 0 )
+			VAR MinFY2 =
+			    RIGHT ( FORMAT ( MinFYNum, "0000" ), 2 )                  -- "26" from 2026
+			VAR MaxFY2 =
+			    RIGHT ( FORMAT ( MaxFYNum, "0000" ), 2 )
+			VAR MinLabel =
+			    FORMAT ( MinD, "mmm" ) & " FY" & MinFY2                   -- e.g., "Oct FY26"
+			VAR MaxLabel =
+			    FORMAT ( MaxD, "mmm" ) & " FY" & MaxFY2
+			RETURN
+			IF (
+			    ISBLANK ( MinD ) || ISBLANK ( MaxD ),
+			    BLANK (),
+			    IF ( MinD = MaxD, MinLabel, MinLabel & " - " & MaxLabel )
+			)
+			
+			```
+		displayFolder: Titles
+		lineageTag: 1a69619a-f409-4d6d-943c-7358fe13cef5
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Perf. BO Rev vs. Target' = DIVIDE([BO Supply Revenue] - [Current Month - Target Supply Back Order], [Current Month - Target Supply Back Order])
+		formatString: 0.00%;-0.00%;0.00%
+		displayFolder: Performance Measures
+		lineageTag: 6038ac5a-cf89-4d7c-9a95-f0ff7c23c546
+
+	measure 'Fmt Bkg – Δ vs Target' = ```
+			
+			VAR _isDelta   = SELECTEDVALUE('cg_MeasuresType'[Measure Type]) = "Δ vs Target"
+			VAR _metricKey = SELECTEDVALUE(_DimMetrics[MetricKey])
+			VAR _func      = SELECTEDVALUE(_DimMetrics[Function])
+			VAR _delta     = [Metric Δ vs Target]                  // % diff vs target, e.g., +0.08 = +8%
+			VAR _absDiff   = ABS(_delta)
+			
+			-- Direction groups
+			VAR _positivePerfMetrics =
+			   {
+			        "SUP_DEMAND_TOT","SUP_DEMAND_STOCK",   // Demand & stocking
+			            "INV_DIOH","INV_AMT",                  // Inventory / DIOH
+			    "PRC_GP_IMP",          // Marketing – GP improvement
+			    "FIN_REV","FIN_UNITS","FIN_ASP","FIN_GP","FIN_GROWR","FIN_GROWU",  // Finance
+			    "SUP_OTIF",            // Supply – service level (exception: higher is better)
+			    "FC_ACC",              // Supply/Fcst – accuracy (higher is better)
+			    "COMEX_WON","COMEX_SIZE", // Commercial – won & funnel size
+			    "SPEC_PHASEAL","SPEC_IVA", // Marketing specifics – conversions (assumed higher is better)
+			    // Marketing forecasts (assumed higher vs target is better)
+			    "SUP_ORD_IN","SUP_ORD_SHIP","SUP_ORD_DELIV" // Supply flow (assumed higher vs target is better)
+			}  // higher = better
+			
+			VAR _negativePerfMetrics =
+			   {
+			
+			    "SUP_ORD_OPEN",                        // Open orders
+			    "SUP_BO_SUP","SUP_BO_DIST", "SUP_BO_SUPREV",           // Backorders
+			
+			    "QLT_C_VOL","QLT_C_OVER90","QLT_C_NUM","QLT_C_TAT",// Quality – lower is better
+			    "PE_DELAY","PE_COMP",                  // Sustaining – delays/under-resourced
+			    "COMEX_LOST"                           // Commercial – lost customers
+			}
+			
+			-- Variance group: closer to target (± threshold) = GREEN; outside = RED
+			VAR _variancePerfMetrics =
+			{
+			    "FC_SIOP",     // SIOP – treat as closeness to plan (adjust if you prefer direction)
+			    "FC_EC","FC_DIST", "FC_SKU",
+			    "PROD_PPA"     // PPA – purchase price vs target (often “as close as possible”)
+			}
+			
+			VAR _varianceThreshold = 0.05   // 5% band for variance metrics
+			
+			RETURN
+			IF(
+			    NOT _isDelta || ISBLANK(_delta),
+			    BLANK(),
+			    SWITCH(
+			        TRUE(),
+			        -- Variance-based: green if within band, else red
+			        _metricKey IN _variancePerfMetrics && _absDiff <= _varianceThreshold, "#BEDC96",  -- light green
+			        _metricKey IN _variancePerfMetrics && _absDiff >  _varianceThreshold, "#F0A0A0",  -- light red
+			
+			        -- Positive performance: higher is better
+			        _metricKey IN _positivePerfMetrics && _delta >  0, "#BEDC96",
+			        _metricKey IN _positivePerfMetrics && _delta <= 0, "#F0A0A0",
+			
+			        -- Negative performance: lower is better
+			        _metricKey IN _negativePerfMetrics && _delta <  0, "#BEDC96",
+			        _metricKey IN _negativePerfMetrics && _delta >= 0, "#F0A0A0",
+			
+			        BLANK()
+			    )
+			)
+			
+			```
+		displayFolder: Formatting
+		lineageTag: 74ca360e-2cfa-421e-aaba-eb8acdd470d0
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fmt Font – Δ vs Target' = ```
+			
+			VAR _isDelta   = SELECTEDVALUE('cg_MeasuresType'[Measure Type]) = "Δ vs Target"
+			VAR _metricKey = SELECTEDVALUE(_DimMetrics[MetricKey])
+			VAR _func      = SELECTEDVALUE(_DimMetrics[Function])
+			VAR _delta     = [Metric Δ vs Target]
+			VAR _absDiff   = ABS(_delta)
+			
+			-- Direction groups
+			VAR _positivePerfMetrics =
+			   {
+			    "PRC_GP_IMP",          // Marketing – GP improvement
+			        "FIN_ASP",     // ASP – closer to target preferred
+			        "INV_DIOH","INV_AMT",                  // Inventory / DIOH
+			        "SUP_DEMAND_TOT","SUP_DEMAND_STOCK",   // Demand & stocking
+			    "FIN_REV","FIN_UNITS","FIN_GP","FIN_GROWR","FIN_GROWU",  // Finance
+			    "SUP_OTIF",            // Supply – service level (exception: higher is better)
+			    "FC_ACC",              // Supply/Fcst – accuracy (higher is better)
+			    "COMEX_WON","COMEX_SIZE", // Commercial – won & funnel size
+			    "SPEC_PHASEAL","SPEC_IVA", // Marketing specifics – conversions (assumed higher is better)
+			    "FC_EC","FC_DIST",     // Marketing forecasts (assumed higher vs target is better)
+			    "SUP_ORD_IN","SUP_ORD_SHIP","SUP_ORD_DELIV" // Supply flow (assumed higher vs target is better)
+			}  // higher = better
+			
+			VAR _negativePerfMetrics =
+			   {
+			
+			    "SUP_ORD_OPEN",                        // Open orders
+			    "SUP_BO_SUP","SUP_BO_DIST", "SUP_BO_SUPREV",            // Backorders
+			
+			    "QLT_C_VOL","QLT_C_OVER90","QLT_C_NUM","QLT_C_TAT",// Quality – lower is better
+			    "PE_DELAY","PE_COMP",                  // Sustaining – delays/under-resourced
+			    "COMEX_LOST"                           // Commercial – lost customers
+			}
+			
+			-- Variance group: closer to target (± threshold) = GREEN; outside = RED
+			VAR _variancePerfMetrics =
+			{
+			
+			    "FC_SIOP", // SIOP – treat as closeness to plan (adjust if you prefer direction)
+			    "FC_SKU",
+			    "PROD_PPA"     // PPA – purchase price vs target (often “as close as possible”)
+			}
+			
+			VAR _varianceThreshold = 0.05
+			
+			RETURN
+			IF(
+			    NOT _isDelta || ISBLANK(_delta),
+			    BLANK(),
+			    SWITCH(
+			        TRUE(),
+			        -- Variance-based: green if within band, else red
+			        _metricKey IN _variancePerfMetrics && _absDiff <= _varianceThreshold, "#3D5C28",  -- dark green
+			        _metricKey IN _variancePerfMetrics && _absDiff >  _varianceThreshold, "#B23E3E",  -- dark red
+			
+			        -- Positive performance: higher is better
+			        _metricKey IN _positivePerfMetrics && _delta >  0, "#3D5C28",
+			        _metricKey IN _positivePerfMetrics && _delta <= 0, "#B23E3E",
+			
+			        -- Negative performance: lower is better
+			        _metricKey IN _negativePerfMetrics && _delta <  0, "#3D5C28",
+			        _metricKey IN _negativePerfMetrics && _delta >= 0, "#B23E3E",
+			
+			        "#444444"
+			    )
+			)
+			
+			```
+		displayFolder: Formatting
+		lineageTag: 21d55e9e-aab6-4e6a-9337-a501e0f55dbd
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Placeholder tbd' = "Tbd"
+		displayFolder: Testing
+		lineageTag: afda5e86-bb6c-4c51-b15a-345e21d1760a
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Latest Closed - Target Supply Back Order' = ```
+			
+			VAR _LatestClosedMonth =
+			    CALCULATE (
+			        MAX ( g_dimdate_analytics_ipd[CalendarDate] ),
+			        FILTER (
+			            ALL ( g_dimdate_analytics_ipd ),
+			            g_dimdate_analytics_ipd[IsClosedMonth] = TRUE ()
+			                && g_dimdate_analytics_ipd[CalendarDate] <= TODAY ()
+			        )
+			    )
+			RETURN
+			CALCULATE (
+			    [Target Helper Supply Back Order] * [Fin. Projection Scenario Dynamic],
+			    g_dimdate_analytics_ipd[CalendarDate] = _LatestClosedMonth
+			)
+			
+			```
+		displayFolder: Target
+		lineageTag: 4cc28957-7069-4bbc-8262-728a0d1dc114
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Current Month - Target Supply Back Order' = ```
+			
+			VAR _CurrentMonth =
+			    CALCULATE (
+			        MAX ( g_dimdate_analytics_ipd[CalendarDate] ),
+			        FILTER (
+			            ALL ( g_dimdate_analytics_ipd ),
+			            g_dimdate_analytics_ipd[IsClosedMonth] = FALSE ()
+			                && g_dimdate_analytics_ipd[CalendarDate] <= TODAY ()
+			        )
+			    )
+			RETURN
+			CALCULATE (
+			    [Target Helper Supply Back Order] * [Fin. Projection Scenario Dynamic],
+			    g_dimdate_analytics_ipd[CalendarDate] = _CurrentMonth
+			)
+			
+			```
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 7c53f299-ce14-42a5-b2df-08e25bd221ae
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Forecast Accuracy Lag2 (Last Closed Month)2' =
+			
+			VAR _LastClosedDate =
+			    CALCULATE (
+			        MAX ( g_dimdate_analytics_ipd[CalendarDate] ),
+			        FILTER (
+			            ALLSELECTED ( g_dimdate_analytics_ipd[CalendarDate] ),
+			            EOMONTH ( g_dimdate_analytics_ipd[CalendarDate], 0 ) < TODAY ()
+			        )
+			    )
+			VAR _MonthStart = EOMONTH ( _LastClosedDate, -1 ) + 1
+			VAR _MonthEnd   = EOMONTH ( _LastClosedDate, 0 )
+			RETURN
+			IF (
+			    ISBLANK ( _LastClosedDate ),
+			    BLANK (),
+			    CALCULATE (
+			        1 -
+			            DIVIDE (
+			                ABS ( [Demand Supply Registered Dynamic] - [Forecast Supply lag2 Dynamic] ),
+			                [Demand Supply Registered Dynamic]
+			            ),
+			        DATESBETWEEN (
+			            g_dimdate_analytics_ipd[CalendarDate],
+			            _MonthStart,
+			            _MonthEnd
+			        )
+			    )
+			)
+		formatString: 0.00%;-0.00%;0.00%
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 20defc07-63f8-4f0b-94c3-44aef9140924
+
+	measure 'Fmt Icon – Δ vs Target' = ```
+			
+			VAR _isDelta   = SELECTEDVALUE('cg_MeasuresType'[Measure Type]) = "Δ vs Target"
+			VAR _metricKey = SELECTEDVALUE(_DimMetrics[MetricKey])
+			VAR _delta     = [Metric Δ vs Target]
+			VAR _absDiff   = ABS(_delta)
+			
+			-- Direction groups (same as your Bkg measure)
+			VAR _positivePerfMetrics =
+			{
+			    "SUP_DEMAND_TOT","SUP_DEMAND_STOCK",   // Demand & stocking
+			    "INV_DIOH","INV_AMT",                  // Inventory / DIOH
+			    "PRC_GP_IMP",                          // Marketing – GP improvement
+			    "FIN_REV","FIN_UNITS","FIN_ASP","FIN_GP","FIN_GROWR","FIN_GROWU",  // Finance
+			    "SUP_OTIF",                            // service level
+			    "FC_ACC",                              // forecast accuracy
+			    "COMEX_WON","COMEX_SIZE",              // Commercial
+			    "SPEC_PHASEAL","SPEC_IVA",             // Marketing conversions
+			    "SUP_ORD_IN","SUP_ORD_SHIP","SUP_ORD_DELIV"  // Supply flow
+			}
+			
+			VAR _negativePerfMetrics =
+			{
+			    "SUP_ORD_OPEN",                        // Open orders
+			    "SUP_BO_SUP","SUP_BO_DIST",            // Backorders
+			    "QLT_C_VOL","QLT_C_OVER90","QLT_C_NUM",// Quality
+			    "PE_DELAY","PE_COMP",                  // Sustaining
+			    "COMEX_LOST"                           // Commercial lost
+			}
+			
+			VAR _variancePerfMetrics =
+			{
+			    "FC_SIOP", "FC_EC", "FC_DIST", "PROD_PPA"
+			}
+			
+			VAR _varianceThreshold = 0.05   // ±5%
+			
+			RETURN
+			IF (
+			    NOT _isDelta || ISBLANK(_delta) || ISBLANK(_metricKey),
+			    BLANK(),
+			    SWITCH (
+			        TRUE(),
+			        -- Variance: neutral if within band; else show direction
+			        _metricKey IN _variancePerfMetrics && _absDiff <= _varianceThreshold, "◆",
+			        _metricKey IN _variancePerfMetrics && _absDiff >  _varianceThreshold, IF(_delta >= 0, "▲", "▼"),
+			
+			        -- Higher = better
+			        _metricKey IN _positivePerfMetrics && _delta >  0, "▲",
+			        _metricKey IN _positivePerfMetrics && _delta <= 0, "▼",
+			
+			        -- Lower = better
+			        _metricKey IN _negativePerfMetrics && _delta <  0, "▲",
+			        _metricKey IN _negativePerfMetrics && _delta >= 0, "▼",
+			
+			        BLANK()
+			    )
+			)
+			
+			```
+		displayFolder: Formatting
+		lineageTag: 17ca3e98-d630-42d3-be9e-1119c38597e7
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'BO Dist Revenue' = ```
+			
+			VAR _TargetDate =
+			    MAX ( g_dimdate_analytics_ipd[DateKeySPLY] )
+			VAR _LastSnapDate =
+			    CALCULATE (
+			        MAX ( g_bowler_backorder[SnapshotDate] ),
+			        REMOVEFILTERS ( g_bowler_backorder[SnapshotDate] ),
+			        g_bowler_backorder[SnapshotDate] <= _TargetDate
+			    )
+			VAR _Base =
+			            CALCULATE (
+			                SUM ( g_bowler_backorder[DistroBOValue2] ),
+			                KEEPFILTERS ( g_bowler_backorder[SnapshotDate] = _LastSnapDate )
+			            )
+			
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1000", DIVIDE ( _Base, 1000 ),
+			        "M",     DIVIDE ( _Base, 1000000 ),
+			        _Base
+			    )
+			
+			```
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: a1c0946c-f11f-4dfc-beca-0c5b162ad712
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Forecast Lag2 (Last Closed Month)' = ```
+			
+			VAR _LastClosedDate =
+			    CALCULATE (
+			        MAX ( g_dimdate_analytics_ipd[CalendarDate] ),
+			        FILTER (
+			            ALLSELECTED ( g_dimdate_analytics_ipd[CalendarDate] ),
+			            EOMONTH ( g_dimdate_analytics_ipd[CalendarDate], 0 ) < TODAY ()
+			        )
+			    )
+			VAR _MonthStart = EOMONTH ( _LastClosedDate, -1 ) + 1
+			VAR _MonthEnd   = EOMONTH ( _LastClosedDate, 0 )
+			RETURN
+			IF (
+			    ISBLANK ( _LastClosedDate ),
+			    BLANK (),
+			    CALCULATE (
+			        [Forecast Supply lag2 Dynamic],
+			        DATESBETWEEN (
+			            g_dimdate_analytics_ipd[CalendarDate],
+			            _MonthStart,
+			            _MonthEnd
+			        )
+			    )
+			)
+			
+			```
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 5ce8f2eb-44f5-41c9-8ad2-18b06a1e62d5
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Font Color – SIOP Threshold 5%' = ```
+			
+			VAR v = [SIOP % Variance]   -- replace with your measure
+			RETURN
+			SWITCH(
+			    TRUE(),
+			    ISBLANK(v), BLANK(),                 -- no color if blank
+			    v >= -0.05 && v <= 0.05, "#3D5C28",  -- green for -5% to +5%
+			    "#B23E3E"                            -- red otherwise
+			)
+			
+			```
+		displayFolder: Formatting
+		lineageTag: a204f200-e433-432c-b359-7abacf6fa0c3
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Invoice Title' = ```
+			
+			VAR DaysInPeriod = [Working Days (Selected, Elapsed)]
+			VAR PeriodLabel  = [Working Days (Selected, Total)]
+			RETURN
+			IF(
+			    ISBLANK(PeriodLabel),          -- only blank when no period exists
+			    BLANK(),
+			    DaysInPeriod & " invoice days out of " & PeriodLabel
+			)
+			
+			```
+		displayFolder: Titles
+		lineageTag: fa0e58fe-c59b-4392-a3a4-532f077a3be3
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Invoice Title SPLY' = ```
+			
+			VAR DaysInPeriod = [Working Days (Selected, Elapsed) SPLY]
+			VAR PeriodLabel  = [Working Days (Selected, Total) SPLY]
+			RETURN
+			IF(
+			    ISBLANK(PeriodLabel),
+			    BLANK(),
+			    "Last year for this period: " & DaysInPeriod & " completed vs " & PeriodLabel & " total invoice days"
+			)
+			
+			```
+		displayFolder: Titles
+		lineageTag: 8014426f-9cd5-4ef9-97ed-c1664fce40ba
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Inventory DIOH' = ```
+			
+			VAR _Inv  = [Inventory Unrestricted Dynamic]   -- stock level (same scale as forecast)
+			VAR _Fcst = [Forecast Supply Dynamic test]         -- forecast over the selected period
+			VAR _Days = [Working Days (Selected, Total)]  -- or calendar days, depending on your logic
+			RETURN
+			IF(
+			    ISBLANK(_Inv) || ISBLANK(_Fcst) || _Fcst <= 0 || _Days <= 0,
+			    BLANK(),
+			    DIVIDE( _Inv * _Days, _Fcst )             -- = Inventory / (Forecast / Days)
+			)
+			
+			```
+		formatString: #,0
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 52263a0f-3cfb-4abc-a266-8d82d1a73ad6
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Target DIOH' = 6*5
+		displayFolder: Target
+		lineageTag: 9b2d59c3-8521-4cf8-b56d-a392d1e1dbd5
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Perf. DIOH vs. Target' = DIVIDE([Inventory DIOH] - [Target DIOH], [Target DIOH])
+		formatString: 0.00%;-0.00%;0.00%
+		displayFolder: Performance Measures
+		lineageTag: a13e6bb0-da45-4932-af3c-4318315a4ecd
+
+	measure 'Font Color – BO Supply Threshold' = ```
+			
+			VAR v = [BO % of Actuals Dynamic]
+			RETURN
+			SWITCH(
+			    TRUE(),
+			    ISBLANK(v), BLANK(),          -- no color if blank
+			    v > 0.01, "#B23E3E",          -- red if > 1%
+			    "#3D5C28"                     -- green otherwise
+			)
+			
+			```
+		displayFolder: Formatting
+		lineageTag: f387e8e9-fede-40d0-9483-216c5df04e29
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Bkg Color – BO Supply Threshold' = ```
+			
+			VAR v = [BO % of Actuals Dynamic]
+			RETURN
+			SWITCH(
+			    TRUE(),
+			    ISBLANK(v), BLANK(),          -- no color if blank
+			    v > 0.01, "#F0A0A0",          -- red if > 1%
+			    "#BEDC96"                     -- green otherwise
+			)
+			
+			```
+		displayFolder: Formatting
+		lineageTag: 504366ba-16c1-4f0c-b3e2-59caf7a4c100
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Bkg Color – Inventory Threshold' = ```
+			
+			VAR v = [Inventory DIOH]
+			RETURN
+			SWITCH(
+			    TRUE(),
+			    ISBLANK(v), BLANK(),          -- no color if blank
+			    v > 30, "#BEDC96",          -- red if > 1%
+			    "#F0A0A0"                     -- green otherwise
+			)
+			
+			```
+		displayFolder: Formatting
+		lineageTag: 53ba3c4f-3a5e-45e2-a0fe-1f6e7abf0774
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Font Color – Inventory Threshold' = ```
+			
+			VAR v = [Inventory DIOH]
+			RETURN
+			SWITCH(
+			    TRUE(),
+			    ISBLANK(v), BLANK(),          -- no color if blank
+			    v > 30, "#3D5C28",          -- red if > 1%
+			    "#B23E3E"                     -- green otherwise
+			)
+			
+			```
+		displayFolder: Formatting
+		lineageTag: 5e365ba9-9ebf-43a0-873b-1e2faac34701
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Bkg Color – SIOP Threshold 5%' = ```
+			
+			VAR v = [SIOP % Variance]   -- replace with your measure
+			RETURN
+			SWITCH(
+			    TRUE(),
+			    ISBLANK(v), BLANK(),                 -- no color if blank
+			    v >= -0.05 && v <= 0.05, "#BEDC96",  -- green for -5% to +5%
+			    "#F0A0A0"                            -- red otherwise
+			)
+			
+			```
+		displayFolder: Formatting
+		lineageTag: 5a377419-3a9f-4187-a912-32e8f8620537
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Font Color – fcst Threshold 85%' = ```
+			
+			VAR v = [Forecast Accuracy Lag2 (Last Closed Month)2]
+			RETURN
+			SWITCH(
+			    TRUE(),
+			    ISBLANK(v), BLANK(),          -- no color if blank
+			    v > 0.85, "#3D5C28",          -- red if > 1%
+			    "#B23E3E"                     -- green otherwise
+			)
+			
+			```
+		displayFolder: Formatting
+		lineageTag: b60e305b-b62b-4a82-b3da-a0b80f7b727f
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Bkg Color – fcst Threshold 85%' = ```
+			
+			VAR v = [Forecast Accuracy Lag2 (Last Closed Month)2]
+			RETURN
+			SWITCH(
+			    TRUE(),
+			    ISBLANK(v), BLANK(),          -- no color if blank
+			    v > 0.85, "#BEDC96",          -- red if > 1%
+			    "#F0A0A0"                     -- green otherwise
+			)
+			
+			```
+		displayFolder: Formatting
+		lineageTag: 8f415d00-9438-4494-b90e-7e64a7e4fd7f
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Bkg Color – Complaints' = ```
+			
+			VAR v = [Complaints per Million Dynamic]
+			RETURN
+			SWITCH(
+			    TRUE(),
+			    ISBLANK(v), BLANK(),          -- no color if blank
+			    v > 7, "#F0A0A0",          -- red if > 1%
+			    "#BEDC96"                     -- green otherwise
+			)
+			
+			```
+		displayFolder: Formatting
+		lineageTag: cf2987a5-5c4f-4bfc-8a4d-37e03e93573e
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Font Color – Complaints' = ```
+			
+			VAR v = [Complaints per Million Dynamic]
+			RETURN
+			SWITCH(
+			    TRUE(),
+			    ISBLANK(v), BLANK(),          -- no color if blank
+			    v > 7, "#B23E3E",          -- red if > 1%
+			    "#3D5C28"                     -- green otherwise
+			)
+			
+			```
+		displayFolder: Formatting
+		lineageTag: a107e078-0a27-4d1b-b774-0bac0ab1f721
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Bkg Color – Complaints Status' = ```
+			
+			VAR v = Comp
+			RETURN
+			SWITCH(
+			    TRUE(),
+			    ISBLANK(v), BLANK(),          -- no color if blank
+			    v > 0.01, "#F0A0A0",          -- red if > 1%
+			    "#BEDC96"                     -- green otherwise
+			)
+			
+			```
+		displayFolder: Formatting
+		lineageTag: 2e8ee3bd-5e4f-4683-bc02-2ca7ca3c143d
+
+	measure 'Text Card 3Month' = "vs. last 3M avg"
+		displayFolder: Helpers
+		lineageTag: ccd24e58-d190-44ea-a768-c1ddb0c80877
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Text Card On Hold' = "On Hold Today"
+		displayFolder: Helpers
+		lineageTag: f56c83e3-80dc-4cec-9864-692114d94887
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Text Card Inv today' = "Inventory Today"
+		displayFolder: Helpers
+		lineageTag: 14a9ab1e-afc6-44e4-b992-8cf889a7b513
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Inventory Unrestricted Dynamic LM' = ```
+			
+			VAR _TargetDate =
+			    MAX ( g_dimdate_analytics_ipd[CalendarDate] )    -- latest day in current selection
+			VAR _LastSnapDate =
+			    CALCULATE (
+			        MAX ( g_bowler_inventory[SnapshotDate] ),     -- latest snapshot ≤ target date
+			        REMOVEFILTERS ( g_bowler_inventory[SnapshotDate] ),
+			        g_bowler_inventory[SnapshotDate] <= _TargetDate,
+			        DATEADD(g_dimdate_analytics_ipd[DateKeySPLY],-1,MONTH)
+			    )
+			VAR _Base =
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Metric'[Metric] ),
+			        "Revenue",
+			            CALCULATE (
+			                SUM ( g_bowler_inventory[UnRestrictedValue] ),
+			                g_bowler_inventory[SnapshotDate] = _LastSnapDate
+			            ),
+			        "Units",
+			            CALCULATE (
+			                SUM ( g_bowler_inventory[UnRestrictedQty] ),
+			                g_bowler_inventory[SnapshotDate] = _LastSnapDate
+			            )
+			    )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1000", DIVIDE ( _Base, 1000 ),
+			        "M",     DIVIDE ( _Base, 1000000 ),
+			        _Base
+			    )
+			
+			```
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: e795b392-5d77-4381-b7d6-ebe1e2a8b3f3
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Target Supply Back Order Rev' = [Target Helper Supply Back Order] * [Fin. Rev Scenario]
+		displayFolder: Target
+		lineageTag: 94ded8de-dfd6-4907-82dc-e6470bc97121
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Demand Supply Registered Units' = ```
+			
+			VAR _LastSnapDate =
+			    CALCULATE (
+			        MAX ( g_bowler_demand[SnapshotDate]),
+			        REMOVEFILTERS ( g_bowler_demand[SnapshotDate])
+			    )
+			VAR _Base =
+			            CALCULATE (
+			                SUM ( g_bowler_demand[DmdQtytot] ),
+			                 g_bowler_demand[SnapshotDate] = _LastSnapDate
+			            )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1000", DIVIDE ( _Base, 1000 ),
+			        "M",     DIVIDE ( _Base, 1000000 ),
+			        _Base
+			    )
+			
+			```
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 11c75675-37d3-4aae-b68e-93cf56d28306
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Forecast Supply lag2 Units' =
+			
+			VAR _TargetDate =
+			    MAX ( g_dimdate_analytics_ipd[CalendarDate] )
+			
+			-- Month that is 2 months before the target date
+			VAR _LagMonthStart =
+			    DATE ( YEAR ( EDATE ( _TargetDate, -2 ) ), MONTH ( EDATE ( _TargetDate, -2 ) ), 1 )
+			VAR _LagMonthEnd =
+			    EOMONTH ( _TargetDate, -2 )
+			
+			-- Latest snapshot *date* within that lag month
+			VAR _LastSnapDateLag2 =
+			    CALCULATE (
+			        MAX ( g_bowler_fcst[SnapshotDate]  ),
+			        REMOVEFILTERS ( g_bowler_fcst[SnapshotDate] ),
+			        DATEVALUE ( g_bowler_fcst[SnapshotDate] ) >= _LagMonthStart,
+			        DATEVALUE ( g_bowler_fcst[SnapshotDate] ) <= _LagMonthEnd
+			    )
+			
+			VAR _Base =
+			            CALCULATE (
+			                SUM ( g_bowler_fcst[ConsensuFinalForecast] ),
+			                DATEVALUE ( g_bowler_fcst[SnapshotDate] ) = _LastSnapDateLag2
+			            )
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1000", DIVIDE ( _Base, 1000 ),
+			        "M",     DIVIDE ( _Base, 1000000 ),
+			        _Base
+			    )
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 8ccffca3-b25f-43bf-918a-4e7ceb3c468f
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Forecast Accuracy Lag2 Bowler Units' =
+			
+			VAR _CurrentDate = FIRSTDATE ( g_dimdate_analytics_ipd[CalendarDate] )
+			VAR _MonthEnd    = EOMONTH ( _CurrentDate, 0 )   // last day of the current month
+			RETURN
+			IF (
+			    _MonthEnd < TODAY (),    // show only if the month is fully closed
+			    1 - CALCULATE (
+			        DIVIDE (
+			            ABS ( [Demand Supply Registered Units] - [Forecast Supply lag2 Units] ),
+			            [Demand Supply Registered Units]
+			        )
+			    ),
+			    BLANK ()
+			)
+		formatString: 0.00%;-0.00%;0.00%
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: 8b92239c-077b-4fff-8d18-4d7eb03061e6
+
+	measure 'Forecast Supply Dynamic test' =
+			
+			VAR _Metric = SELECTEDVALUE ( 'slc_Metric'[Metric] )
+			VAR _Scale  = SELECTEDVALUE ( 'slc_Scale'[Scale] )
+			
+			-- Helper: compute the Units value for the current context *month*
+			VAR __Units_PerMonth =
+			    VAR _TargetDate =
+			        MAX ( g_dimdate_analytics_ipd[DateKeySPLY] )  -- assumed to be a date (no time)
+			    VAR _MonthStart = DATE ( YEAR ( _TargetDate ), MONTH ( _TargetDate ), 1 )
+			    VAR _MonthEnd   = EOMONTH ( _TargetDate, 0 )
+			
+			    -- Last snapshot on/before the month end (adjust if you need strictly within month)
+			    VAR _LastSnapDate_Month =
+			        CALCULATE (
+			            MAX ( g_bowler_fcst[SnapshotDate] ),
+			            REMOVEFILTERS ( g_bowler_fcst[SnapshotDate] ),
+			            g_bowler_fcst[SnapshotDate] <= _MonthEnd
+			        )
+			    RETURN
+			        CALCULATE (
+			            SUM ( g_bowler_fcst[ConsensuFinalForecast] ),
+			            KEEPFILTERS ( g_bowler_fcst[SnapshotDate] = _LastSnapDate_Month )
+			        )
+			
+			-- Helper: iterate visible months for totals
+			VAR __Units_Total =
+			    VAR _MonthsVisible =
+			        -- Use the exact column that defines your month grain in the visual.
+			        -- If you use a MonthStart or Year-Month column, prefer that here.
+			        VALUES ( g_dimdate_analytics_ipd[DateKeySPLY] )
+			    RETURN
+			        SUMX (
+			            _MonthsVisible,
+			            VAR _ThisDate = g_dimdate_analytics_ipd[DateKeySPLY]
+			            VAR _MonthEnd = EOMONTH ( _ThisDate, 0 )
+			            VAR _LastSnapDate_Month =
+			                CALCULATE (
+			                    MAX ( g_bowler_fcst[SnapshotDate] ),
+			                    REMOVEFILTERS ( g_bowler_fcst[SnapshotDate] ),
+			                    g_bowler_fcst[SnapshotDate] <= _MonthEnd
+			                )
+			            RETURN
+			                CALCULATE (
+			                    SUM ( g_bowler_fcst[ConsensuFinalForecast] ),
+			                    KEEPFILTERS ( g_bowler_fcst[SnapshotDate] = _LastSnapDate_Month ),
+			                    KEEPFILTERS ( g_dimdate_analytics_ipd[DateKeySPLY] = _ThisDate )
+			                )
+			        )
+			
+			VAR _Base_Units =
+			    -- If we're in a month row (the month column is in scope), compute per-month.
+			    -- Otherwise (totals/subtotals), iterate months.
+			    IF (
+			        ISINSCOPE ( g_dimdate_analytics_ipd[DateKeySPLY] ),
+			        __Units_PerMonth,
+			        __Units_Total
+			    )
+			
+			VAR _Base =
+			    SWITCH (
+			        _Metric,
+			        "Revenue", BLANK(),
+			        "Units",   _Base_Units,
+			        BLANK()
+			    )
+			
+			RETURN
+			    SWITCH (
+			        _Scale,
+			        "/1000", DIVIDE ( _Base, 1000 ),
+			        "M",     DIVIDE ( _Base, 1000000 ),
+			        _Base
+			    )
+		formatString: #,0
+		displayFolder: Dynamic Measures - Supply
+		lineageTag: e2830740-d803-4c57-b5c0-f01f84ba83a8
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Fin. Actuals R12M avg month Dynamic' = ```
+			
+			[Fin. Actuals R12M Dynamic]/12
+			
+			```
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 6eb40e38-4970-4225-881c-ea1ed7dda40c
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Complaints per Million R12 SPLY Dynamic' = ```
+			
+			VAR _num = [Complaints Dynamic SPLY]
+			VAR _den = [Fin. Actuals R12M avg month Dynamic]
+			RETURN 1000000 * DIVIDE ( _num, _den )
+			
+			```
+		displayFolder: Dynamic Measures - Quality
+		lineageTag: 409599c5-48fd-43b5-bfe0-836b361dcffe
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fin. Actuals R12M SPLY Dynamic' = ```
+			
+			VAR _endDate =
+			    MAX(g_dimdate_analytics_ipd[CalendarDate])
+			RETURN
+			CALCULATE(
+			    [Fin. Actuals SPLY Dynamic],
+			    DATESINPERIOD(
+			        g_dimdate_analytics_ipd[CalendarDate],
+			        _endDate,
+			        -12,
+			        MONTH
+			    ),
+			    REMOVEFILTERS(g_dimdate_analytics_ipd)
+			)
+			
+			```
+		displayFolder: Dynamic Measures - Finance
+		lineageTag: 728866f3-a1e5-4ecd-ac27-aa15013cdb10
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Complaints >180 Days Dynamic' = ```
+			
+			VAR _asOf =
+			    EOMONTH ( MAX ( 'g_dimdate_analytics_ipd'[Date] ), 0 )   -- or just MAX(...) if you don't want month-end
+			VAR _base =
+			    CALCULATE (
+			        DISTINCTCOUNT ( g_bowler_complaints[PrId] ),
+			        -- ignore Date table so page/month slicers don't filter the age test
+			        REMOVEFILTERS ( 'g_dimdate_analytics_ipd' ),
+			
+			        -- only open
+			        KEEPFILTERS ( VALUE ( g_bowler_complaints[PrIsClosed] ) = 0 ),
+			
+			        -- valid awareness date
+			        KEEPFILTERS ( NOT ISBLANK ( g_bowler_complaints[AwarenessDate] ) ),
+			
+			        -- age > 90 days
+			        KEEPFILTERS ( DATEDIFF ( g_bowler_complaints[AwarenessDate], _asOf, DAY ) > 180 ),
+			
+			        -- exclude "concomitant" (case-insensitive) and incorrect entries
+			        KEEPFILTERS ( NOT CONTAINSSTRING ( LOWER ( g_bowler_complaints[SuspectOrConcomitant] ), "concomitant" ) ),
+			        KEEPFILTERS ( g_bowler_complaints[AsReportedCode1] <> "Incorrect Entry" )
+			    )
+			RETURN
+			SWITCH (
+			    SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			    "/1",     _base,
+			    "/1000",  DIVIDE ( _base, 1000 ),
+			    "M",      _base / 1000000,
+			    _base
+			)
+			
+			```
+		displayFolder: Dynamic Measures - Quality
+		lineageTag: 9a26fd10-ea33-4ccc-8a9e-8e341b89a963
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Complaints TAT' = ```
+			
+			AVERAGEX(
+			    FILTER(
+			        'g_bowler_complaints',
+			        NOT ISBLANK('g_bowler_complaints'[OrigDateClosed]) &&
+			        'g_bowler_complaints'[OrigDateClosed]>= MIN(g_dimdate_analytics_ipd[Date]) &&
+			        'g_bowler_complaints'[OrigDateClosed] <= MAX(g_dimdate_analytics_ipd[Date])
+			    ),
+			    DATEDIFF(
+			        'g_bowler_complaints'[AwarenessDate],
+			        'g_bowler_complaints'[OrigDateClosed],
+			        DAY
+			    )
+			)
+			
+			```
+		displayFolder: Dynamic Measures - Quality
+		lineageTag: 42ee0a61-5527-468a-bf71-8fd9dbfcab8b
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Complaints TAT Bowler' = ```
+			
+			AVERAGEX(
+			    FILTER(
+			        'g_bowler_complaints',
+			        NOT ISBLANK('g_bowler_complaints'[OrigDateClosed]) &&
+			        'g_bowler_complaints'[OrigDateClosed] >= MIN( g_dimdate_analytics_ipd[Date] ) &&
+			        'g_bowler_complaints'[OrigDateClosed] <= MIN( TODAY(), MAX( g_dimdate_analytics_ipd[Date] ) )
+			    ),
+			    DATEDIFF(
+			        'g_bowler_complaints'[AwarenessDate],
+			        'g_bowler_complaints'[OrigDateClosed],
+			        DAY
+			    )
+			)
+			
+			```
+		displayFolder: Dynamic Measures - Quality
+		lineageTag: 4b184700-82d4-4895-bc95-41873f67c312
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Complaints >60 Days' = ```
+			
+			CALCULATE(
+			    COUNTROWS('g_bowler_complaints'),
+			    FILTER(
+			        'g_bowler_complaints',
+			        
+			        -- Compute aging per row
+			        VAR _Aging =
+			            IF(
+			                ISBLANK('g_bowler_complaints'[OrigDateClosed]),
+			                -- Open complaint → use Today
+			                DATEDIFF(
+			                    'g_bowler_complaints'[AwarenessDate],
+			                    TODAY(),
+			                    DAY
+			                ),
+			                -- Closed complaint → use closure date
+			                DATEDIFF(
+			                    'g_bowler_complaints'[AwarenessDate],
+			                    'g_bowler_complaints'[OrigDateClosed],
+			                    DAY
+			                )
+			            )
+			        RETURN
+			            _Aging > 60 &&
+			            -- Ensure we never show future periods in Bowler
+			            'g_bowler_complaints'[AwarenessDate] <= TODAY()
+			    )
+			)
+			
+			```
+		displayFolder: Dynamic Measures - Quality
+		lineageTag: b29f540d-9da9-4920-8e0a-2e590eab2940
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'SFDC avg. Win Rate' = 0.4
+		formatString: 0%;-0%;0%
+		displayFolder: Dynamic Measures - SFDC
+		lineageTag: 25264c44-0620-49e7-a45a-dc9eef8de05e
+
+	measure 'Sfdc FiscalYearAmount' =
+			
+			VAR _base =
+			CALCULATE(
+			    SUM( g_bowler_sfdc[FiscalYearAmountUSD] ),
+			    g_bowler_sfdc[SnapshotDate] = MAX( g_bowler_sfdc[SnapshotDate] )
+			)
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		formatString: #,0
+		displayFolder: Dynamic Measures - SFDC
+		lineageTag: 0af2983c-5819-4439-8dd4-dd0d3af7ee31
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Sfdc FiscalYearAmount Closed Lost' =
+			
+			VAR _base =
+			CALCULATE(
+			    SUM( g_bowler_sfdc[FiscalYearAmountUSD] ),
+			    g_bowler_sfdc[SnapshotDate] = MAX( g_bowler_sfdc[SnapshotDate] ),
+			    g_bowler_sfdc[OpportunityStageDerived] = "Closed Lost"
+			)
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		formatString: #,0
+		displayFolder: Dynamic Measures - SFDC
+		lineageTag: 3176d090-cf03-44df-aa6c-726d0c7fc384
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Sfdc FiscalYearAmount Closed Won' =
+			
+			VAR _base =
+			CALCULATE(
+			    SUM( g_bowler_sfdc[FiscalYearAmountUSD] ),
+			    g_bowler_sfdc[SnapshotDate] = MAX( g_bowler_sfdc[SnapshotDate] ),
+			    g_bowler_sfdc[OpportunityStageDerived] = "Closed Won"
+			)
+			RETURN
+			    SWITCH (
+			        SELECTEDVALUE ( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE ( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base     -- default if nothing selected
+			    )
+		formatString: #,0
+		displayFolder: Dynamic Measures - SFDC
+		lineageTag: eae135e8-6445-480f-889b-1d68f970a191
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Sfdc FiscalYearAmount Closed Won Cumulative' = ```
+			
+			VAR _CurrentDate =
+			    MAX( g_dimdate_analytics_ipd[Date] )
+			VAR _base =
+			    CALCULATE(
+			        SUM( g_bowler_sfdc[FiscalYearAmountUSD] ),
+			        g_bowler_sfdc[SnapshotDate] = MAX( g_bowler_sfdc[SnapshotDate] ),
+			        g_bowler_sfdc[OpportunityStageDerived] = "Closed Won",
+			        FILTER(
+			            ALLSELECTED( g_dimdate_analytics_ipd[Date] ),
+			            g_dimdate_analytics_ipd[Date] <= _CurrentDate
+			        )
+			    )
+			RETURN
+			    SWITCH(
+			        SELECTEDVALUE( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base
+			    )
+			
+			```
+		formatString: #,0
+		displayFolder: Dynamic Measures - SFDC
+		lineageTag: 5ed6f7e9-1b6d-455a-98dc-7903c5f871a4
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Sfdc FiscalYearAmount Open' = ```
+			
+			VAR _base =
+			    CALCULATE(
+			        SUM( g_bowler_sfdc[FiscalYearAmountUSD] ),
+			        g_bowler_sfdc[SnapshotDate] = MAX( g_bowler_sfdc[SnapshotDate] ),
+			        g_bowler_sfdc[OpportunityStageDerived] IN { "Early", "Mid", "Late" }
+			    )
+			RETURN
+			    SWITCH(
+			        SELECTEDVALUE( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base
+			    )
+			
+			```
+		formatString: #,0
+		displayFolder: Dynamic Measures - SFDC
+		lineageTag: 71e20655-94c6-48c1-afcd-4c364ae7f568
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Sfdc FiscalYearAmount Open Proba Adjusted' = ```
+			
+			VAR _base =
+			    CALCULATE(
+			        SUMX(
+			            g_bowler_sfdc,
+			            g_bowler_sfdc[FiscalYearAmountUSD] * DIVIDE(g_bowler_sfdc[OpportunityProbability],100)
+			        ),        g_bowler_sfdc[OpportunityStageDerived] IN { "Early", "Mid", "Late" }
+			        ,
+			        g_bowler_sfdc[SnapshotDate] = MAX( g_bowler_sfdc[SnapshotDate] )
+			    )
+			RETURN
+			    SWITCH(
+			        SELECTEDVALUE( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base
+			    )
+			
+			```
+		formatString: #,0
+		displayFolder: Dynamic Measures - SFDC
+		lineageTag: 359fb838-15c8-448f-bc8d-f84ec58b8bb2
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Sfdc FiscalYearAmount Proba Adjusted' = ```
+			
+			VAR _base =
+			    CALCULATE(
+			        SUMX(
+			            g_bowler_sfdc,
+			            g_bowler_sfdc[FiscalYearAmountUSD] * g_bowler_sfdc[OpportunityProbability]
+			        ),
+			        g_bowler_sfdc[SnapshotDate] = MAX( g_bowler_sfdc[SnapshotDate] )
+			    )
+			RETURN
+			    SWITCH(
+			        SELECTEDVALUE( 'slc_Scale'[Scale] ),
+			        "/1",     _base,
+			        "/1000",  DIVIDE( _base, 1000 ),
+			        "M",      _base / 1000000,
+			        _base
+			    )
+			
+			```
+		displayFolder: Dynamic Measures - SFDC
+		lineageTag: c1a0eab1-8fbb-4dfc-9864-43f53fa83004
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Sfdc Probable Won' = ```
+			
+			VAR _OpenPipeline = [Sfdc FiscalYearAmount Open Proba Adjusted]
+			
+			VAR _WinRate =
+			    [Sfdc Win Rate Rolling 12M]   -- your existing win-rate measure
+			
+			RETURN
+			    _OpenPipeline * _WinRate
+			
+			```
+		formatString: #,0
+		displayFolder: Dynamic Measures - SFDC
+		lineageTag: 5075aa41-2a36-497f-bed9-d34ffd02cd4e
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'SFDC Sandbag' = [Sfdc Probable Won]*0.9
+		formatString: #,0
+		displayFolder: Dynamic Measures - SFDC
+		lineageTag: 73a03f38-16fb-41f1-a9e0-89b2cbe8e2b7
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Sfdc Win Rate' = ```
+			
+			VAR _Wins =
+			    CALCULATE(
+			        COUNTROWS( g_bowler_sfdc ),
+			        g_bowler_sfdc[OpportunityStageDerived] = "Closed Won",
+			        g_bowler_sfdc[SnapshotDate] = MAX( g_bowler_sfdc[SnapshotDate] )
+			    )
+			
+			VAR _Losses =
+			    CALCULATE(
+			        COUNTROWS( g_bowler_sfdc ),
+			        g_bowler_sfdc[OpportunityStageDerived] = "Closed Lost",
+			        g_bowler_sfdc[SnapshotDate] = MAX( g_bowler_sfdc[SnapshotDate] )
+			    )
+			
+			VAR _Total =
+			    _Wins + _Losses
+			
+			RETURN
+			    DIVIDE( _Wins, _Total )
+			
+			```
+		formatString: 0.0%;-0.0%;0.0%
+		displayFolder: Dynamic Measures - SFDC
+		lineageTag: 2b9023a1-c70e-4a85-bba6-56b6c6aa28fb
+
+	measure 'Sfdc Win Rate Rolling 12M' =
+			
+			VAR _StartDate =
+			    MAX( g_dimdate_analytics_ipd[Date] ) - 365
+			
+			VAR _Wins =
+			    CALCULATE(
+			        COUNTROWS( g_bowler_sfdc ),
+			        g_bowler_sfdc[OpportunityStageDerived] = "Closed Won",
+			        g_bowler_sfdc[SnapshotDate] = MAX( g_bowler_sfdc[SnapshotDate] ),
+			        g_dimdate_analytics_ipd[Date] > _StartDate,
+			        g_dimdate_analytics_ipd[Date] <= MAX( g_dimdate_analytics_ipd[Date] )
+			    )
+			
+			VAR _Losses =
+			    CALCULATE(
+			        COUNTROWS( g_bowler_sfdc ),
+			        g_bowler_sfdc[OpportunityStageDerived] = "Closed Lost",
+			        g_bowler_sfdc[SnapshotDate] = MAX( g_bowler_sfdc[SnapshotDate] ),
+			        g_dimdate_analytics_ipd[Date] > _StartDate,
+			        g_dimdate_analytics_ipd[Date] <= MAX( g_dimdate_analytics_ipd[Date] )
+			    )
+			
+			VAR _Total =
+			    _Wins + _Losses
+			
+			RETURN
+			    DIVIDE( _Wins, _Total )
+		formatString: 0.0%;-0.0%;0.0%
+		displayFolder: Dynamic Measures - SFDC
+		lineageTag: 0f86a4ab-ae95-408f-b075-4a7733ecd6b9
+
+	measure 'Sfdc Win Rate Competitive' =
+			
+			VAR _Wins =
+			    CALCULATE(
+			        COUNTROWS( g_bowler_sfdc ),
+			        g_bowler_sfdc[OpportunityStageDerived] = "Closed Won",
+			        g_bowler_sfdc[OpportunityReasonCategory]= "Competitive",
+			        g_bowler_sfdc[SnapshotDate] = MAX( g_bowler_sfdc[SnapshotDate] )
+			    )
+			
+			VAR _Losses =
+			    CALCULATE(
+			        COUNTROWS( g_bowler_sfdc ),
+			        g_bowler_sfdc[OpportunityStageDerived] = "Closed Lost",
+			        g_bowler_sfdc[OpportunityReasonCategory]= "Competitive",
+			        g_bowler_sfdc[SnapshotDate] = MAX( g_bowler_sfdc[SnapshotDate] )
+			    )
+			
+			VAR _Total =
+			    _Wins + _Losses
+			
+			RETURN
+			    DIVIDE( _Wins, _Total )
+		displayFolder: Dynamic Measures - SFDC
+		lineageTag: 5c3dd9e9-d765-446c-a8db-037297d44873
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Sfdc New Revenue Added' = ```
+			
+			VAR _base =
+			    CALCULATE(
+			        SUM( g_bowler_sfdc[FiscalYearAmountUSD] ),
+			        
+			        -- Only opportunities created in the selected period
+			        g_bowler_sfdc[OpportunityCreatedDate] >= MIN(g_dimdate_analytics_ipd[Date]) &&
+			        g_bowler_sfdc[OpportunityCreatedDate] <= MAX(g_dimdate_analytics_ipd[Date]),
+			
+			        -- Always use latest SFDC snapshot
+			        g_bowler_sfdc[SnapshotDate] = MAX(g_bowler_sfdc[SnapshotDate])
+			    )
+			RETURN
+			    SWITCH(
+			        SELECTEDVALUE('slc_Scale'[Scale]),
+			        "/1",     _base,
+			        "/1000",  DIVIDE(_base, 1000),
+			        "M",      _base / 1000000,
+			        _base
+			    )
+			```
+		displayFolder: Dynamic Measures - SFDC
+		lineageTag: 802a8b8c-5d70-432a-985c-0ce0ab656c4c
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Sfdc Win Rate Rolling 12M Bowler closed' = ```
+			
+			VAR _TodayMonthStart =
+			    DATE( YEAR(TODAY()), MONTH(TODAY()), 1 )
+			
+			VAR _CurrentContextDate =
+			    MAX( g_dimdate_analytics_ipd[Date] )
+			
+			-- Only allow months strictly before the current (open) month
+			VAR _IsClosedMonth =
+			    _CurrentContextDate < _TodayMonthStart
+			
+			-------------------------------------------
+			-- Rolling 12M Logic
+			-------------------------------------------
+			VAR _StartDate =
+			    _CurrentContextDate - 365
+			
+			VAR _Wins =
+			    CALCULATE(
+			        COUNTROWS( g_bowler_sfdc ),
+			        g_bowler_sfdc[OpportunityStageDerived] = "Closed Won",
+			        g_bowler_sfdc[SnapshotDate] = MAX( g_bowler_sfdc[SnapshotDate] ),
+			        g_dimdate_analytics_ipd[Date] > _StartDate,
+			        g_dimdate_analytics_ipd[Date] <= _CurrentContextDate
+			    )
+			
+			VAR _Losses =
+			    CALCULATE(
+			        COUNTROWS( g_bowler_sfdc ),
+			        g_bowler_sfdc[OpportunityStageDerived] = "Closed Lost",
+			        g_bowler_sfdc[SnapshotDate] = MAX( g_bowler_sfdc[SnapshotDate] ),
+			        g_dimdate_analytics_ipd[Date] > _StartDate,
+			        g_dimdate_analytics_ipd[Date] <= _CurrentContextDate
+			    )
+			
+			VAR _Total = _Wins + _Losses
+			
+			RETURN
+			    IF(
+			        _IsClosedMonth,
+			        DIVIDE( _Wins, _Total ),
+			        BLANK()
+			    )
+			
+			```
+		lineageTag: 06997e73-f8cd-4563-b214-f30148b7a4e1
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Sfdc Win Rate Competitive Bowler Closed' = ```
+			
+			VAR _TodayMonthStart =
+			    DATE( YEAR(TODAY()), MONTH(TODAY()), 1 )
+			
+			VAR _CurrentContextDate =
+			    MAX( g_dimdate_analytics_ipd[Date] )
+			
+			VAR _IsClosedMonth =
+			    _CurrentContextDate < _TodayMonthStart
+			
+			---------------------------------------------
+			-- Win / Loss calculation
+			---------------------------------------------
+			VAR _Wins =
+			    CALCULATE(
+			        COUNTROWS(g_bowler_sfdc),
+			        g_bowler_sfdc[OpportunityStageDerived] = "Closed Won",
+			        g_bowler_sfdc[OpportunityReasonCategory] = "Competitive",
+			        g_bowler_sfdc[SnapshotDate] = MAX(g_bowler_sfdc[SnapshotDate])
+			    )
+			
+			VAR _Losses =
+			    CALCULATE(
+			        COUNTROWS(g_bowler_sfdc),
+			        g_bowler_sfdc[OpportunityStageDerived] = "Closed Lost",
+			        g_bowler_sfdc[OpportunityReasonCategory] = "Competitive",
+			        g_bowler_sfdc[SnapshotDate] = MAX(g_bowler_sfdc[SnapshotDate])
+			    )
+			
+			VAR _Total = _Wins + _Losses
+			
+			---------------------------------------------
+			RETURN
+			    IF(
+			        _IsClosedMonth,
+			        DIVIDE(_Wins, _Total),
+			        BLANK()
+			    )
+			
+			```
+		lineageTag: d94a8fbb-8475-45e3-823f-44825d9f99e4
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Sfdc Probable Won Bowler Future Applied' = ```
+			
+			VAR _TodayMonthStart =
+			    DATE( YEAR(TODAY()), MONTH(TODAY()), 1 )
+			
+			--------------------------------------------
+			-- Identify the latest fully closed month
+			--------------------------------------------
+			VAR _LatestClosedMonthDate =
+			    CALCULATE(
+			        MAX( g_dimdate_analytics_ipd[Date] ),
+			        g_dimdate_analytics_ipd[Date] < _TodayMonthStart
+			    )
+			
+			--------------------------------------------
+			-- Fetch win rate from that month only (scalar)
+			-- REMOVEFILTERS ensures it does NOT collapse the visual
+			--------------------------------------------
+			VAR _ClosedMonthWinRate =
+			    CALCULATE(
+			        [Sfdc Win Rate Rolling 12M],
+			        g_dimdate_analytics_ipd[Date] = _LatestClosedMonthDate,
+			        REMOVEFILTERS( g_dimdate_analytics_ipd )
+			    )
+			
+			--------------------------------------------
+			-- Open pipeline from current filter context
+			--------------------------------------------
+			VAR _OpenPipeline =
+			    [Sfdc FiscalYearAmount Open Proba Adjusted]
+			
+			--------------------------------------------
+			RETURN
+			    _OpenPipeline * _ClosedMonthWinRate
+			
+			```
+		lineageTag: c1f90f3a-9360-47b7-b2a7-52c7b4b87109
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition MasterMeasures = m
+		mode: import
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i44FAA==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [Column1 = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"Column1", type text}}),
+				    #"Removed Columns" = Table.RemoveColumns(#"Changed Type",{"Column1"})
+				in
+				    #"Removed Columns"
+
+	annotation PBI_ResultType = Table
+
+
